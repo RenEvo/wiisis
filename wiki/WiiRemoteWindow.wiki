@@ -1,4 +1,5 @@
 #summary Wiisis API - Wii Remote Window Tool
+#labels Featured
 
 = Introduction =
 
