@@ -1,0 +1,19 @@
+#summary Wiisis API - File Descriptions - WR_Implementation
+
+= Files =
+
+ * Core\WR_Implementation.h
+ * Core\WR_Implementation.cpp
+
+= Description =
+
+The Implementation files include all of the interface header files used by the library. Several macros are also safely defined to ensure the library compiles and executes successfully.
+
+The *CWR_GlobalInstance* class is a singleton class. It can be accessed in three ways:
+{{{
+CWR_GlobalInstance *pWR = CWR_GlobalInstance::GetInstance();
+CWR_GlobalInstance *pWR = GetWiiRemoteSystem(); // Global function
+CWR_GlobalInstance *pWR = g_pWR; // Externalized reference
+}}}
+
+It also houses an error listener which will notify you if an error occurs in any of the sub-modules.
