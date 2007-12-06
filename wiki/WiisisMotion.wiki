@@ -1,0 +1,14 @@
+#summary Wiisis API - File Descriptions - Motion Control
+
+= Files =
+
+ * Interfaces\IMotion.h
+ * Motions\BaseMotion.h
+ * Motions\BaseMotion.cpp
+ * Motions\*.cpp
+
+= Description =
+
+Motion control in Wiisis is a simpler method used to define new gestures for the Wii Remote and/or Nunchuk controllers. Each gesture defines methods that are called when a gesture is starting, updating or ending. It checks the values of these gestures to see if certain points are met that are tell-tale signs that the user is making this gesture.
+
+If all points are met, based on a weight value defined to the gesture when it is registered, the Remote Manager will ask it to execute its logic.
