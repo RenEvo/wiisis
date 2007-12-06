@@ -1,0 +1,26 @@
+#summary Wiisis API - File Descriptions
+
+= Wii Remote (WR) Library =
+These files make up WR Library and perform the actual communication with the Wii Remote. There are several modules that each control a general aspect of what it takes to talk to the remote, its extensions, and the HID profile on your computer for the remote.
+
+All files are contained in the *Core* sub-folder. If all you need is the underlaying communications, you should only include the following files.
+
+  * [WRImplementation WR_Implementation Files]
+  * [WRTimer WR_Timer Files]
+  * [WRHIDController WR_HIDController Files]
+  * [WRWiiRemote WR_WiiRemote Files]
+  * [WRWiiButtons WR_WiiButtons Files]
+  * [WRWiiMotion WR_WiiMotion Files]
+  * [WRWiiData WR_WiiData Files]
+  * [WRWiiSensor WR_WiiSensor Files]
+  * [WRExtension WR_WiiExtension Files (including Nunchuk support)]
+
+= Wiisis Source =
+These files make up the game logic used in Wiisis. This included utilizing the WR Library and deploying all the logic for the many buttons and motion inputs, parsing the Wii Remote configuration file, and altering some of the functionality in Crysis to better suit the remote.
+
+You are free to include and alter this source in your own modifications, but you do not need to include _all_ of these files in your solution. You should only use what you need.
+
+  * [WiisisRemoteManager Remote Manager]
+  * [WiisisProfileManager Profile Manager]
+  * [WiisisMotion Motion Control]
+  * [WiisisCrysis Crysis Files]
