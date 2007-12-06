@@ -1,9 +1,11 @@
 #summary Wiisis API - Setting up the API
 
 = Subversion =
-The latest version of the source code can be obtained through anonymous checkout. You may view the contents of the repository or get the instructions on how to check out the code on the[http://code.google.com/p/wiisis/source Source] page.
+The latest version of the source code can be obtained through anonymous checkout. You may view the contents of the repository or get the instructions on how to check out the code on the [http://code.google.com/p/wiisis/source Source] page.
 
 You can also find downloads including the [WiiRemoteWindow Wii Remote Window tool] and the binaries for the latest API files in the [http://code.google.com/p/wiisis/downloads/list Downloads] section.
+
+Don't forget to review the API documentation [TOC here]!
 
 
 = Requirements =
