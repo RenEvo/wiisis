@@ -1,4 +1,4 @@
-s#summary Wiisis API - File Descriptions - Wiisis Remote Manager
+#summary Wiisis API - File Descriptions - Wiisis Remote Manager
 
 = Files =
 
