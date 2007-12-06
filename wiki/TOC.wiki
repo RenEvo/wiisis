@@ -2,7 +2,6 @@
 #labels Featured
 
 = About the API =
-
 The Wiisis API is a collection of code that allows you to interface with a Nintendo Wii Remote from within the Game DLL source in the CryENGINE 2 Public SDK.
 
 The API is divided up into two parts:
