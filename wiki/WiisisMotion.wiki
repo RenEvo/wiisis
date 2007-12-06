@@ -5,7 +5,7 @@
  * Interfaces\IMotion.h
  * Motions\BaseMotion.h
  * Motions\BaseMotion.cpp
- * Motions\*.cpp
+ * Any other files in the Motions sub-folder.
 
 = Description =
 
