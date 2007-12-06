@@ -1,0 +1,13 @@
+#summary Wiisis API - File Descriptions - WR_WiiData
+
+= Files =
+
+ * Core\Interfaces\WR_IWiiData.h
+ * Core\WR_CWiiData.h
+ * Core\WR_CWiiData.cpp
+
+= Description =
+
+This is a helper class created by each Wii Remote instance. It is used to manage reading and writing data to/from the Wii Remote's flash memory and registers. It is used by some of the other helpers as well including the Motion helper (for getting calibration data), the Expansion helpers and the IR Sensor helper.
+
+Its listener will report when data has been read or written.
