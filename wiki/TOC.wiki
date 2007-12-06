@@ -1,4 +1,5 @@
 #summary Wiisis API - Table of Contents
+#labels Featured
 
 = About the API =
 
