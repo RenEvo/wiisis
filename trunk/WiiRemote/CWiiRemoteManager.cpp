@@ -128,11 +128,13 @@ struct SWiiInputListener : public IWR_WiiExtensionListener, public IWR_WiiButton
 							public IWR_WiiMotionListener, public IWR_WiiSensorListener
 {
 	CWiiRemoteManager *pManager;
+	bool bInGesture;
 	int nState;
 	int nEndLifetime, nExtensionEndLifetime;
 
 	SWiiInputListener(void)
 	{
+		bInGesture = false;
 		nState = STATE_PLAYER;
 		nEndLifetime = nExtensionEndLifetime = 0;
 	}
@@ -402,6 +404,15 @@ void CWiiRemoteManager::Update(bool bHaveFocus, int nUpdateFlags)
 
 	if (true == bHaveFocus)
 	{
+		// Notify crosshair of IR enabled status
+		if (CHUD *pHud = m_pGame->GetHUD())
+		{
+			if (CHUDCrosshair *pCH = pHud->GetCrosshair())
+			{
+				pCH->IREnable(CHECK_PROFILE_BOOL(UseIRSensor));
+			}
+		}
+
 		// Update player movement
 		UpdatePlayerMovement();
 
@@ -1085,84 +1096,100 @@ void SWiiInputListener::OnSingleMotion(IWR_WiiRemote *pRemote, IWR_WiiMotion *pM
 	{
 		if (nState == STATE_PLAYER || nState == STATE_BINOCULARS)
 		{
-			CMovementRequest mr;
-
-			bool bInLockRetain = (true == pManager->m_bLockView && true == CHECK_PROFILE_BOOL(RetainViewMode));
-			if ((false == pManager->m_bLockView) || (true == bInLockRetain && NULL == pManager->m_pLockedEntity))
+			if (false == UsingIRSensor())
 			{
-				// Ignore if using IR sensor
-				if (false == UsingIRSensor())
+				// Ignore if a motion is alive
+				bool bContinue = true;
+				if (true == bInGesture)
 				{
-					// Look up/down
-					SMovementState info;
-					pPlayer->GetMovementController()->GetMovementState(info);
-					Vec3 vForward = info.aimDirection;
-					Vec3 vPlanarForward(vForward.x,vForward.y,0.0f);
-					const float fPitch = acosf(vForward.Dot(vPlanarForward)) * (vForward.z < 0.0f ? -1.0f : 1.0f);
-					const float fMotionPitch = DEG2RAD(180.0f) * (motion.fPitch / DEG2RAD(CHECK_PROFILE_FLOAT(LookUpMaxTilt)));
-					const float fDelta = (fMotionPitch * (true == CHECK_PROFILE_BOOL(InverseLook) ? -1.0f : 1.0f)) - fPitch;
-					float fLookUp = 0.0f;
-					if (RAD2DEG(fabs(fDelta)) >= (CHECK_PROFILE_FLOAT(LookUpError) * (180.0f/CHECK_PROFILE_FLOAT(LookUpMaxTilt))))
+					// Have we dropped out?
+					if (pRemote->GetMotionHelper()->GetMotionLifetime() == 1)
+						bInGesture = false;
+					bContinue = false;
+				}
+				else if (pRemote->GetMotionHelper()->GetMotionLifetime() > 1)
+				{
+					// In a gesture
+					bInGesture = true;
+					bContinue = false;
+				}
+				if (true == bContinue)
+				{
+					CMovementRequest mr;
+					bool bInLockRetain = (true == pManager->m_bLockView && true == CHECK_PROFILE_BOOL(RetainViewMode));
+					if ((false == pManager->m_bLockView) || (true == bInLockRetain && NULL == pManager->m_pLockedEntity))
 					{
-						// Change in angle is larger than the error scaled by our max tilt, so apply
-						fLookUp = fDelta * CHECK_PROFILE_FLOAT(LookUpSensitivity);
-					}
+						// Look up/down
+						SMovementState info;
+						pPlayer->GetMovementController()->GetMovementState(info);
+						Vec3 vForward = info.aimDirection;
+						Vec3 vPlanarForward(vForward.x,vForward.y,0.0f);
+						const float fPitch = acosf(vForward.Dot(vPlanarForward)) * (vForward.z < 0.0f ? -1.0f : 1.0f);
+						const float fMotionPitch = DEG2RAD(180.0f) * (motion.fPitch / DEG2RAD(CHECK_PROFILE_FLOAT(LookUpMaxTilt)));
+						const float fDelta = (fMotionPitch * (true == CHECK_PROFILE_BOOL(InverseLook) ? -1.0f : 1.0f)) - fPitch;
+						float fLookUp = 0.0f;
+						if (RAD2DEG(fabs(fDelta)) >= (CHECK_PROFILE_FLOAT(LookUpError) * (180.0f/CHECK_PROFILE_FLOAT(LookUpMaxTilt))))
+						{
+							// Change in angle is larger than the error scaled by our max tilt, so apply
+							fLookUp = fDelta * CHECK_PROFILE_FLOAT(LookUpSensitivity);
+						}
 
-					// Turn
-					float fTurn = 0.0f;
-					const float fTurnMin = CHECK_PROFILE_FLOAT(TurnTilt);
-					if (fabs(motion.fRoll) >= DEG2RAD(fTurnMin))
-					{
-						fTurn = -motion.fRoll*CHECK_PROFILE_FLOAT(TurnSensitivity);
+						// Turn
+						float fTurn = 0.0f;
+						const float fTurnMin = CHECK_PROFILE_FLOAT(TurnTilt);
+						if (fabs(motion.fRoll) >= DEG2RAD(fTurnMin))
+						{
+							fTurn = -motion.fRoll*CHECK_PROFILE_FLOAT(TurnSensitivity);
+						}
+						
+						// Request rotation
+						mr.AddDeltaRotation(Ang3(fLookUp,0.0f,fTurn));
 					}
-					
-					// Request rotation
-					mr.AddDeltaRotation(Ang3(fLookUp,0.0f,fTurn));
+					else if (true == bInLockRetain && NULL != pManager->m_pLockedEntity && false == CHECK_PROFILE_BOOL(HardLockView))
+					{
+						// Get move speeds based on sensitivity and dead zones
+						float fMovePitch = 0.0f, fMoveRoll = 0.0f;
+						SMovementState info;
+						pPlayer->GetMovementController()->GetMovementState(info);
+						Vec3 vForward = info.aimDirection;
+						Vec3 vPlanarForward(vForward.x,vForward.y,0.0f);
+						const float fPitch = acosf(vForward.Dot(vPlanarForward)) * (vForward.z < 0.0f ? -1.0f : 1.0f);
+						const float fMotionPitch = DEG2RAD(180.0f) * (motion.fPitch / DEG2RAD(CHECK_PROFILE_FLOAT(LookUpMaxTilt)));
+						const float fDelta = (fMotionPitch * (true == CHECK_PROFILE_BOOL(InverseLook) ? -1.0f : 1.0f)) - fPitch;
+						float fLookUp = 0.0f;
+						if (RAD2DEG(fabs(fDelta)) >= (CHECK_PROFILE_FLOAT(LookUpError) * (180.0f/CHECK_PROFILE_FLOAT(LookUpMaxTilt))))
+						{
+							fMovePitch = fDelta * CHECK_PROFILE_FLOAT(SoftLock_LookUpSensitivity);
+						}
+						const float fTurnMin = CHECK_PROFILE_FLOAT(TurnTilt);
+						if (fabs(motion.fRoll) >= DEG2RAD(fTurnMin))
+						{
+							fMoveRoll = -motion.fRoll*CHECK_PROFILE_FLOAT(SoftLock_TurnSensitivity);
+						}
+
+						// Move around
+						Matrix34 mPlayerMat = pPlayer->GetEntity()->GetLocalTM();
+						Vec3 const& vRight = mPlayerMat.GetColumn0();
+						Vec3 const& vUp = mPlayerMat.GetColumn2();
+						pManager->m_vLockedEntityOffset += vRight*fMoveRoll;
+						pManager->m_vLockedEntityOffset += vUp*fMovePitch;
+
+						// Clamp to its AABB (in local space)
+						AABB aabb = pManager->m_pLockedEntity->GetBBox();
+						Vec3 vPos(pManager->m_pLockedEntity->GetPos(true));
+						aabb.max -= vPos;
+						aabb.min -= vPos;
+						if (pManager->m_vLockedEntityOffset.x < aabb.min.x) pManager->m_vLockedEntityOffset.x = aabb.min.x;
+						if (pManager->m_vLockedEntityOffset.x > aabb.max.x) pManager->m_vLockedEntityOffset.x = aabb.max.x;
+						if (pManager->m_vLockedEntityOffset.y < aabb.min.y) pManager->m_vLockedEntityOffset.y = aabb.min.y;
+						if (pManager->m_vLockedEntityOffset.y > aabb.max.y) pManager->m_vLockedEntityOffset.y = aabb.max.y;
+						if (pManager->m_vLockedEntityOffset.z < aabb.min.z) pManager->m_vLockedEntityOffset.z = aabb.min.z;
+						if (pManager->m_vLockedEntityOffset.z > aabb.max.z) pManager->m_vLockedEntityOffset.z = aabb.max.z;
+					}
+		
+					pPlayer->GetMovementController()->RequestMovement(mr);
 				}
 			}
-			else if (true == bInLockRetain && NULL != pManager->m_pLockedEntity && false == CHECK_PROFILE_BOOL(HardLockView))
-			{
-				// Get move speeds based on sensitivity and dead zones
-				float fMovePitch = 0.0f, fMoveRoll = 0.0f;
-				SMovementState info;
-				pPlayer->GetMovementController()->GetMovementState(info);
-				Vec3 vForward = info.aimDirection;
-				Vec3 vPlanarForward(vForward.x,vForward.y,0.0f);
-				const float fPitch = acosf(vForward.Dot(vPlanarForward)) * (vForward.z < 0.0f ? -1.0f : 1.0f);
-				const float fMotionPitch = DEG2RAD(180.0f) * (motion.fPitch / DEG2RAD(CHECK_PROFILE_FLOAT(LookUpMaxTilt)));
-				const float fDelta = (fMotionPitch * (true == CHECK_PROFILE_BOOL(InverseLook) ? -1.0f : 1.0f)) - fPitch;
-				float fLookUp = 0.0f;
-				if (RAD2DEG(fabs(fDelta)) >= (CHECK_PROFILE_FLOAT(LookUpError) * (180.0f/CHECK_PROFILE_FLOAT(LookUpMaxTilt))))
-				{
-					fMovePitch = fDelta * CHECK_PROFILE_FLOAT(SoftLock_LookUpSensitivity);
-				}
-				const float fTurnMin = CHECK_PROFILE_FLOAT(TurnTilt);
-				if (fabs(motion.fRoll) >= DEG2RAD(fTurnMin))
-				{
-					fMoveRoll = -motion.fRoll*CHECK_PROFILE_FLOAT(SoftLock_TurnSensitivity);
-				}
-
-				// Move around
-				Matrix34 mPlayerMat = pPlayer->GetEntity()->GetLocalTM();
-				Vec3 const& vRight = mPlayerMat.GetColumn0();
-				Vec3 const& vUp = mPlayerMat.GetColumn2();
-				pManager->m_vLockedEntityOffset += vRight*fMoveRoll;
-				pManager->m_vLockedEntityOffset += vUp*fMovePitch;
-
-				// Clamp to its AABB (in local space)
-				AABB aabb = pManager->m_pLockedEntity->GetBBox();
-				Vec3 vPos(pManager->m_pLockedEntity->GetPos(true));
-				aabb.max -= vPos;
-				aabb.min -= vPos;
-				if (pManager->m_vLockedEntityOffset.x < aabb.min.x) pManager->m_vLockedEntityOffset.x = aabb.min.x;
-				if (pManager->m_vLockedEntityOffset.x > aabb.max.x) pManager->m_vLockedEntityOffset.x = aabb.max.x;
-				if (pManager->m_vLockedEntityOffset.y < aabb.min.y) pManager->m_vLockedEntityOffset.y = aabb.min.y;
-				if (pManager->m_vLockedEntityOffset.y > aabb.max.y) pManager->m_vLockedEntityOffset.y = aabb.max.y;
-				if (pManager->m_vLockedEntityOffset.z < aabb.min.z) pManager->m_vLockedEntityOffset.z = aabb.min.z;
-				if (pManager->m_vLockedEntityOffset.z > aabb.max.z) pManager->m_vLockedEntityOffset.z = aabb.max.z;
-			}
-	
-			pPlayer->GetMovementController()->RequestMovement(mr);
 		}
 		else if (nState == STATE_LANDVEHICLE || nState == STATE_SEAVEHICLE)
 		{
@@ -1212,13 +1239,13 @@ void SWiiInputListener::OnSingleMotion(IWR_WiiRemote *pRemote, IWR_WiiMotion *pM
 							IVehicleView *pView = pSeat->GetView(pSeat->GetCurrentView());
 							if (pView && pView->IsThirdPerson())
 							{
-								fLookUp *= 25.0f;
-								fTurn *= 25.0f;
+								fLookUp *= 400.0f*gEnv->pTimer->GetFrameTime();
+								fTurn *= 200.0f*gEnv->pTimer->GetFrameTime();
 							}
 							else if (pSeat->IsGunner() && !pSeat->IsDriver())
 							{
-								fLookUp *= 12.5f;
-								fTurn *= 12.5f;
+								fLookUp *= 400.0f*gEnv->pTimer->GetFrameTime();
+								fTurn *= 200.0f*gEnv->pTimer->GetFrameTime();
 							}
 						}
 
@@ -1256,13 +1283,13 @@ void SWiiInputListener::OnSingleMotion(IWR_WiiRemote *pRemote, IWR_WiiMotion *pM
 						IVehicleView *pView = pSeat->GetView(pSeat->GetCurrentView());
 						if (pView && pView->IsThirdPerson())
 						{
-							fMoveRoll *= 25.0f;
-							fMovePitch *= 25.0f;
+							fMovePitch *= 400.0f*gEnv->pTimer->GetFrameTime();
+							fMoveRoll *= 200.0f*gEnv->pTimer->GetFrameTime();
 						}
 						else if (pSeat->IsGunner() && !pSeat->IsDriver())
 						{
-							fMoveRoll *= 12.5f;
-							fMovePitch *= 12.5f;
+							fMovePitch *= 400.0f*gEnv->pTimer->GetFrameTime();
+							fMoveRoll *= 200.0f*gEnv->pTimer->GetFrameTime();
 						}
 					}
 
@@ -1707,6 +1734,21 @@ void SWiiInputListener::OnCursorUpdate(IWR_WiiRemote *pRemote, IWR_WiiSensor *pS
 	// Ignore if disabled
 	if (false == pCH->IRIsEnabled()) return;
 
+	// Ignore if a motion is alive
+	if (true == bInGesture)
+	{
+		// Have we dropped out?
+		if (pRemote->GetMotionHelper()->GetMotionLifetime() == 0)
+			bInGesture = false;
+		return;
+	}
+	else if (pRemote->GetMotionHelper()->GetMotionLifetime() > 0)
+	{
+		// In a gesture
+		bInGesture = true;
+		return;
+	}
+
 	CPlayer *pPlayer = GetPlayer();
 	if (NULL == pPlayer) return;
 	
@@ -1792,7 +1834,7 @@ void SWiiInputListener::OnCursorUpdate(IWR_WiiRemote *pRemote, IWR_WiiSensor *pS
 					else
 					{
 						// Calculate delta and move towards it at sensitivity speed
-						const float fDelta = DEG2RAD(fMotionPitch) - fPitch;
+						const float fDelta = DEG2RAD(fMotionPitch) * (CHECK_PROFILE_BOOL(InverseLook) == true ? -1.0f : 1.0f) - fPitch;
 						if (RAD2DEG(fabs(fDelta)) >= CHECK_PROFILE_FLOAT(LookUpError))
 						{
 							fLookUp = fDelta * fLookUpSensitivity;
@@ -1827,13 +1869,13 @@ void SWiiInputListener::OnCursorUpdate(IWR_WiiRemote *pRemote, IWR_WiiSensor *pS
 							IVehicleView *pView = pSeat->GetView(pSeat->GetCurrentView());
 							if (pView && pView->IsThirdPerson())
 							{
-								fLookUp *= 2.0f;
-								fTurn *= 2.0f;
+								fLookUp *= 32.0f*gEnv->pTimer->GetFrameTime();
+								fTurn *= 16.0f*gEnv->pTimer->GetFrameTime();
 							}
 							else if (pSeat->IsGunner() && !pSeat->IsDriver())
 							{
-								fLookUp *= 1.5f;
-								fTurn *= 1.5f;
+								fLookUp *= 32.0f*gEnv->pTimer->GetFrameTime();
+								fTurn *= 16.0f*gEnv->pTimer->GetFrameTime();
 							}
 						}
 

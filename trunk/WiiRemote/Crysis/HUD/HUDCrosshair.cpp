@@ -522,6 +522,7 @@ void CHUDCrosshair::Break(bool state)
 // [WR] IR Sensor controls
 void CHUDCrosshair::IREnable(bool bOn)
 {
+	if (m_bIREnabled == bOn) return;
 	m_bIREnabled = bOn;
 
 	// If disabling, reset crosshair points
