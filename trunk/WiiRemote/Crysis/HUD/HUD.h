@@ -847,6 +847,7 @@ public:
 		MENU_OTHER
 	};
 	virtual int GetOpenedMenu(void) const;
+	int m_nLastMouseEvent_X, m_nLastMouseEvent_Y;
 	// [/WR]	
 };
 

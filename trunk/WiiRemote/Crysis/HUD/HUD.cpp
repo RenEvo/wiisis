@@ -282,6 +282,10 @@ CHUD::CHUD()
 
 	//the hud exists as long as the game exists
 	gEnv->pGame->GetIGameFramework()->RegisterListener(this, "hud", FRAMEWORKLISTENERPRIORITY_HUD);
+
+	// [WR] Init variables
+	m_nLastMouseEvent_X = m_nLastMouseEvent_Y = 0;
+	// [/WR]
 }
 
 //-----------------------------------------------------------------------------------------------------
@@ -2835,6 +2839,11 @@ void CHUD::OnHardwareMouseEvent(int iX,int iY,EHARDWAREMOUSEEVENT eHardwareMouse
 	{
 		return;
 	}
+
+	// [WR] Record for later use
+	m_nLastMouseEvent_X = iX;
+	m_nLastMouseEvent_Y = iY;
+	// [/WR]
 
 	if(HARDWAREMOUSEEVENT_LBUTTONDOUBLECLICK == eHardwareMouseEvent)
 	{

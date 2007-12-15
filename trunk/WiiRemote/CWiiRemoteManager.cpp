@@ -812,24 +812,19 @@ void SWiiInputListener::OnCommonButton(IWR_WiiRemote *pRemote, unsigned int nBut
 				pManager->m_pGame->GetHUD()->OnAction(rGameActions.hud_weapon_mod, eIS_Released, 1);
 			else if ((false == bExtension && nButton == WR_BUTTON_A) || (true == bExtension && (nButton&~NUNCHUK_BIT) == WR_NCBUTTON_Z))
 			{
-				// TODO Figure out why an offset is needed here
-				static const int nXOffset = -96;
-				static const int nYOffset = -64;
 				if (IHardwareMouse *pMouse = gEnv->pSystem->GetIHardwareMouse())
 				{
 					if (nStatus == WR_BUTTONSTATUS_PUSHED)
 					{
 						// Send hardware left mouse button press
-						float fX,fY;
-						pMouse->GetHardwareMouseClientPosition(&fX,&fY);
-						pMouse->Event(int(fX)+nXOffset,int(fY)+nYOffset,HARDWAREMOUSEEVENT_LBUTTONDOWN);
+						pMouse->Event(pManager->m_pGame->GetHUD()->m_nLastMouseEvent_X, 
+							pManager->m_pGame->GetHUD()->m_nLastMouseEvent_Y, HARDWAREMOUSEEVENT_LBUTTONDOWN);
 					}
 					else if (nStatus == WR_BUTTONSTATUS_RELEASED)
 					{
 						// Send hardware left mouse button press
-						float fX,fY;
-						pMouse->GetHardwareMouseClientPosition(&fX,&fY);
-						pMouse->Event(int(fX)+nXOffset,int(fY)+nYOffset,HARDWAREMOUSEEVENT_LBUTTONUP);
+						pMouse->Event(pManager->m_pGame->GetHUD()->m_nLastMouseEvent_X, 
+							pManager->m_pGame->GetHUD()->m_nLastMouseEvent_Y, HARDWAREMOUSEEVENT_LBUTTONUP);
 					}
 				}
 			}
