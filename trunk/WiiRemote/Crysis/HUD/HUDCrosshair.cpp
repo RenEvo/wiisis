@@ -269,10 +269,6 @@ void CHUDCrosshair::SetCrosshair(int iCrosshair)
 	if(g_pGameCVars->g_difficultyLevel>3 && !gEnv->bMultiplayer)
 		iCrosshair = 0;
 
-	// [WR] If IR enabled, ignore 0 requests
-	if (true == m_bIREnabled && 0 == iCrosshair) return;
-	// [/WR]
-
 	iCrosshair = MAX(0,iCrosshair);
 	iCrosshair = MIN(13,iCrosshair);
 
@@ -435,10 +431,6 @@ void CHUDCrosshair::UpdateCrosshair()
 
 void CHUDCrosshair::SetOpacity(float opacity)
 {
-	// [WR] If IR enabled, always have an opacity of 1
-	if (true == m_bIREnabled) opacity = 1.0f;
-	// [/WR]
-
 	if(opacity != m_opacity)
 	{
 		m_animCrossHair.Invoke("setOpacity", opacity);

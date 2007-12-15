@@ -874,10 +874,8 @@ void CPlayerView::ViewVehicle(SViewParams &viewParams)
 		if (IRenderNode *pLockedEntity = g_pGame->GetWiiRemoteManager()->GetLockedEntity(vLockedEntityOffset))
 		{
 			Matrix34 PlayerMat;
-			Vec3 vPos = pLockedEntity->GetPos(true);
-			pe_status_dynamics dyn;
-			if (pLockedEntity->GetPhysics() && pLockedEntity->GetPhysics()->GetStatus(&dyn))
-				vPos = dyn.centerOfMass;
+			AABB aabb = pLockedEntity->GetBBox();
+			Vec3 vPos = aabb.GetCenter()+Vec3(0.f,0.f,(aabb.max.z-aabb.min.z)*0.25f);
 
 			// Look at its point plus move offset
 			Vec3 vLookAtPt = vPos + vLockedEntityOffset;

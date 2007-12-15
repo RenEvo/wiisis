@@ -11,6 +11,8 @@
 ////////////////////////////////////////////////////
 
 #include "stdafx.h"
+#include "VehicleMovementHelicopter.h"
+#include "VehicleMovementVTOL.h"
 #include "GameRules.h"
 #include "GameActions.h"
 #include "Core\WR_Implementation.h"
@@ -27,7 +29,6 @@
 #include "IUIDraw.h"
 #include "Fists.h"
 #include "Binocular.h"
-
 ////////////////////////////////////////////////////
 // GetPlayer
 //
@@ -178,8 +179,9 @@ CWiiRemoteManager::CWiiRemoteManager(CGame *pGame)
 	m_fLastErrorDisplay = 0.0f;
 	m_pRemote = NULL;
 
-	m_nBatteryTexture = m_nBatteryLevelTexture = 0;
+	m_nBatteryTexture = m_nBatteryLevelTexture = m_nIRDotTexture = 0;
 	m_fBatteryLevel = 1.0f;
+	m_fIRDotWidth = m_fIRDotHeight = 0.0f;
 
 	g_WiiRemoteErrorListener.pManager = this;
 	g_WiiRemoteListener.pManager = this;
@@ -188,6 +190,7 @@ CWiiRemoteManager::CWiiRemoteManager(CGame *pGame)
 
 	m_bSprint = false;
 	m_bLockView = false;
+	m_bLockedNPC = false;
 	m_bForceLockView = false;
 	m_pLockedEntity = 0;
 	m_fLastLockRelease = 0;
@@ -242,6 +245,10 @@ void CWiiRemoteManager::Initialize(void)
 		// Battery
 		m_nBatteryTexture = pUI->CreateTexture("Textures\\Gui\\HUD\\WiiRemoteIndicators\\Battery.dds");
 		m_nBatteryLevelTexture = pUI->CreateTexture("Textures\\Gui\\HUD\\WiiRemoteIndicators\\BatteryLevel.dds");
+
+		// IR Dot
+		m_nIRDotTexture = pUI->CreateTexture("Textures\\Gui\\HUD\\IRDot.dds");
+		pUI->GetTextureSize(m_nIRDotTexture, m_fIRDotWidth, m_fIRDotHeight);
 	}
 
 	// Create profile
@@ -383,6 +390,13 @@ void CWiiRemoteManager::Update(bool bHaveFocus, int nUpdateFlags)
 					break;
 
 					case IVehicleMovement::eVMT_Air:
+					{
+						// Test if it is VTOL or not
+						CVehicleMovementHelicopter *pHeli = (CVehicleMovementHelicopter*)(pMovement);
+						nNewState = (false==pHeli->IsVTOL()?STATE_HELIVEHICLE:STATE_VTOLVEHICLE);
+					}
+					break;
+
 					case IVehicleMovement::eVMT_Other:
 					default:
 					{
@@ -449,9 +463,26 @@ void CWiiRemoteManager::Update(bool bHaveFocus, int nUpdateFlags)
 ////////////////////////////////////////////////////
 void CWiiRemoteManager::UpdateHUD(CHUD *pHUD)
 {
-	// Check if error message is active
+	// Must be enabled
+	if (false == m_bMasterEnabled) return;
+
 	if (IUIDraw *pUI = m_pGame->GetIGameFramework()->GetIUIDraw())
 	{
+		// Draw marker for where IR is pointing
+		if (true == CHECK_PROFILE_BOOL(ShowIRDot))
+		{
+			CHUDCrosshair *pH = pHUD->GetCrosshair();
+			if (NULL != pH && true == pH->IRIsEnabled())
+			{
+				Vec3 vPos = pH->IRGetCursorPos();
+				vPos.x *= 800.f;
+				vPos.y *= 600.f;
+				pUI->DrawImageCentered(m_nIRDotTexture, vPos.x/*-m_fIRDotWidth*0.5f*/, vPos.y/*-m_fIRDotHeight*0.5f*/,
+					m_fIRDotWidth, m_fIRDotHeight, 0, 1, 1, 1, CHECK_PROFILE_FLOAT(IRDotOpacity));
+			}
+		}
+
+		// Display error icon
 		for (int i = 0; i < WIIREMOTE_ERROR_MAX; i++)
 		{
 			if (true == m_Errors[i].bOn && 0 != m_Errors[i].nTextureID)
@@ -516,6 +547,9 @@ void CWiiRemoteManager::SetMasterEnabled(bool bOn)
 		{
 			if (false == bOn)
 			{
+				if (m_pGame && m_pGame->GetHUD()) m_pGame->GetHUD()->FadeOutBigOverlayFlashMessage();
+				m_fLastErrorDisplay = 0.0f;
+
 				// Hack to fix the lean
 				if (pPlayer->GetMovementController())
 				{
@@ -806,7 +840,11 @@ void SWiiInputListener::OnCommonButton(IWR_WiiRemote *pRemote, unsigned int nBut
 	if (CHECK_PROFILE_BUTTON(LockView) == nButton)
 	{
 		pManager->m_bLockView = bDown;
-		if (false == bDown) pManager->m_pLockedEntity = NULL; // Lost locked entity
+		if (false == bDown)
+		{
+			pManager->m_pLockedEntity = NULL; // Lost locked entity
+			pManager->m_bLockedNPC = false;
+		}
 
 		// Check if force lock
 		if (true == bDown)
@@ -980,28 +1018,12 @@ void SWiiInputListener::OnCommonButton(IWR_WiiRemote *pRemote, unsigned int nBut
 				if (nSeatId != nPrevId)
 				{
 					// Change to its seat
-					switch (nSeatId)
+					IVehicleSeat *pPrevSeat = pVehicle->GetSeatById(nPrevId);
+					IVehicleSeat *pNextSeat = pVehicle->GetSeatById(nSeatId);
+					if (pPrevSeat && pNextSeat)
 					{
-						case 1:
-							pPlayer->GetPlayerInput()->OnAction(rGameActions.v_changeseat1, eIS_Pressed, 1.0f);
-							pPlayer->GetPlayerInput()->OnAction(rGameActions.v_changeseat1, eIS_Released, 1.0f);
-						break;
-						case 2:
-							pPlayer->GetPlayerInput()->OnAction(rGameActions.v_changeseat2, eIS_Pressed, 1.0f);
-							pPlayer->GetPlayerInput()->OnAction(rGameActions.v_changeseat2, eIS_Released, 1.0f);
-						break;
-						case 3:
-							pPlayer->GetPlayerInput()->OnAction(rGameActions.v_changeseat3, eIS_Pressed, 1.0f);
-							pPlayer->GetPlayerInput()->OnAction(rGameActions.v_changeseat3, eIS_Released, 1.0f);
-						break;
-						case 4:
-							pPlayer->GetPlayerInput()->OnAction(rGameActions.v_changeseat4, eIS_Pressed, 1.0f);
-							pPlayer->GetPlayerInput()->OnAction(rGameActions.v_changeseat4, eIS_Released, 1.0f);
-						break;
-						case 5:
-							pPlayer->GetPlayerInput()->OnAction(rGameActions.v_changeseat5, eIS_Pressed, 1.0f);
-							pPlayer->GetPlayerInput()->OnAction(rGameActions.v_changeseat5, eIS_Released, 1.0f);
-						break;
+						pPrevSeat->Exit(false, true);
+						pNextSeat->Enter(pPlayer->GetEntityId(), false);
 					}
 				}
 			}
@@ -1061,6 +1083,166 @@ void SWiiInputListener::OnCommonButton(IWR_WiiRemote *pRemote, unsigned int nBut
 						pWeaponItem->GetIWeapon()->OnAction(pPlayer->GetEntityId(), rGameActions.reload, eIS_Pressed, 1.0f);
 					}
 				}
+			}
+		}
+	}
+	else if (nState == STATE_VTOLVEHICLE)
+	{
+		// Get vehicle
+		IVehicle *pVehicle = pPlayer->GetLinkedVehicle();
+		if (NULL != pVehicle)
+		{
+			// Use key
+			if (CHECK_PROFILE_BUTTON(VTOL_Use) == nButton)
+			{
+				if (WR_BUTTONSTATUS_PUSHED == nStatus) pPlayer->GetPlayerInput()->OnAction(rGameActions.use, eIS_Pressed, 1.0f);
+				if (WR_BUTTONSTATUS_RELEASED == nStatus) pPlayer->GetPlayerInput()->OnAction(rGameActions.use, eIS_Released, 1.0f);
+			}
+
+			// Change seat
+			if (IVehicleSeat *pSeat = pVehicle->GetSeatForPassenger(pPlayer->GetEntityId()))
+			{
+				TVehicleSeatId nSeatId = pSeat->GetSeatId();
+				TVehicleSeatId nPrevId = nSeatId;
+				if (CHECK_PROFILE_BUTTON(VTOL_PrevSeat) == nButton && WR_BUTTONSTATUS_PUSHED == nStatus)
+				{
+					// If first seat, select last one; otherwise, select previous
+					if (nSeatId == 1)
+						nSeatId = pVehicle->GetLastSeatId();
+					else
+						nSeatId--;
+				}
+				else if (CHECK_PROFILE_BUTTON(VTOL_NextSeat) == nButton && WR_BUTTONSTATUS_PUSHED == nStatus)
+				{
+					// If last seat, select first one; othwerise, select next
+					if (nSeatId == pVehicle->GetLastSeatId())
+						nSeatId = 1;
+					else
+						nSeatId++;
+				}
+				if (nSeatId != nPrevId)
+				{
+					// Change to its seat
+					IVehicleSeat *pPrevSeat = pVehicle->GetSeatById(nPrevId);
+					IVehicleSeat *pNextSeat = pVehicle->GetSeatById(nSeatId);
+					if (pPrevSeat && pNextSeat)
+					{
+						pPrevSeat->Exit(false, true);
+						pNextSeat->Enter(pPlayer->GetEntityId(), false);
+					}
+				}
+			}
+
+			// Boost
+			if (CHECK_PROFILE_BUTTON(VTOL_Boost) == nButton)
+			{
+				if (WR_BUTTONSTATUS_PUSHED == nStatus)
+					pPlayer->GetPlayerInput()->OnAction(rGameActions.v_boost, eIS_Pressed, 1.0f);
+				else if (WR_BUTTONSTATUS_RELEASED == nStatus)
+					pPlayer->GetPlayerInput()->OnAction(rGameActions.v_boost, eIS_Released, 1.0f);
+			}
+
+			// Change view
+			if (CHECK_PROFILE_BUTTON(VTOL_View) == nButton)
+			{
+				if (WR_BUTTONSTATUS_RELEASED == nStatus)
+					pPlayer->GetPlayerInput()->OnAction(rGameActions.v_changeview, eIS_Released, 1.0f);
+			}
+
+			// Handle vehicle weapon
+			if (CHECK_PROFILE_BUTTON(VTOL_FireGun) == nButton)
+			{
+				if (nStatus == WR_BUTTONSTATUS_PUSHED)
+					pPlayer->GetPlayerInput()->OnAction(rGameActions.attack1, eIS_Pressed, 1.0f);
+				else if (nStatus == WR_BUTTONSTATUS_RELEASED)	
+					pPlayer->GetPlayerInput()->OnAction(rGameActions.attack1, eIS_Released, 1.0f);
+			}
+			if (CHECK_PROFILE_BUTTON(VTOL_FireRocket) == nButton)
+			{
+				if (nStatus == WR_BUTTONSTATUS_PUSHED)
+					pPlayer->GetPlayerInput()->OnAction(rGameActions.v_attack2, eIS_Pressed, 1.0f);
+				else if (nStatus == WR_BUTTONSTATUS_RELEASED)	
+					pPlayer->GetPlayerInput()->OnAction(rGameActions.v_attack2, eIS_Released, 1.0f);
+			}
+		}
+	}
+	else if (nState == STATE_HELIVEHICLE)
+	{
+		// Get vehicle
+		IVehicle *pVehicle = pPlayer->GetLinkedVehicle();
+		if (NULL != pVehicle)
+		{
+			// Use key
+			if (CHECK_PROFILE_BUTTON(Heli_Use) == nButton)
+			{
+				if (WR_BUTTONSTATUS_PUSHED == nStatus) pPlayer->GetPlayerInput()->OnAction(rGameActions.use, eIS_Pressed, 1.0f);
+				if (WR_BUTTONSTATUS_RELEASED == nStatus) pPlayer->GetPlayerInput()->OnAction(rGameActions.use, eIS_Released, 1.0f);
+			}
+
+			// Change seat
+			if (IVehicleSeat *pSeat = pVehicle->GetSeatForPassenger(pPlayer->GetEntityId()))
+			{
+				TVehicleSeatId nSeatId = pSeat->GetSeatId();
+				TVehicleSeatId nPrevId = nSeatId;
+				if (CHECK_PROFILE_BUTTON(Heli_PrevSeat) == nButton && WR_BUTTONSTATUS_PUSHED == nStatus)
+				{
+					// If first seat, select last one; otherwise, select previous
+					if (nSeatId == 1)
+						nSeatId = pVehicle->GetLastSeatId();
+					else
+						nSeatId--;
+				}
+				else if (CHECK_PROFILE_BUTTON(Heli_NextSeat) == nButton && WR_BUTTONSTATUS_PUSHED == nStatus)
+				{
+					// If last seat, select first one; othwerise, select next
+					if (nSeatId == pVehicle->GetLastSeatId())
+						nSeatId = 1;
+					else
+						nSeatId++;
+				}
+				if (nSeatId != nPrevId)
+				{
+					// Change to its seat
+					IVehicleSeat *pPrevSeat = pVehicle->GetSeatById(nPrevId);
+					IVehicleSeat *pNextSeat = pVehicle->GetSeatById(nSeatId);
+					if (pPrevSeat && pNextSeat)
+					{
+						pPrevSeat->Exit(false, true);
+						pNextSeat->Enter(pPlayer->GetEntityId(), false);
+					}
+				}
+			}
+
+			// Boost
+			if (CHECK_PROFILE_BUTTON(Heli_Boost) == nButton)
+			{
+				if (WR_BUTTONSTATUS_PUSHED == nStatus)
+					pPlayer->GetPlayerInput()->OnAction(rGameActions.v_boost, eIS_Pressed, 1.0f);
+				else if (WR_BUTTONSTATUS_RELEASED == nStatus)
+					pPlayer->GetPlayerInput()->OnAction(rGameActions.v_boost, eIS_Released, 1.0f);
+			}
+
+			// Change view
+			if (CHECK_PROFILE_BUTTON(Heli_View) == nButton)
+			{
+				if (WR_BUTTONSTATUS_RELEASED == nStatus)
+					pPlayer->GetPlayerInput()->OnAction(rGameActions.v_changeview, eIS_Released, 1.0f);
+			}
+
+			// Handle vehicle weapon
+			if (CHECK_PROFILE_BUTTON(Heli_FireGun) == nButton)
+			{
+				if (nStatus == WR_BUTTONSTATUS_PUSHED)
+					pPlayer->GetPlayerInput()->OnAction(rGameActions.attack1, eIS_Pressed, 1.0f);
+				else if (nStatus == WR_BUTTONSTATUS_RELEASED)	
+					pPlayer->GetPlayerInput()->OnAction(rGameActions.attack1, eIS_Released, 1.0f);
+			}
+			if (CHECK_PROFILE_BUTTON(Heli_FireRocket) == nButton)
+			{
+				if (nStatus == WR_BUTTONSTATUS_PUSHED)
+					pPlayer->GetPlayerInput()->OnAction(rGameActions.v_attack2, eIS_Pressed, 1.0f);
+				else if (nStatus == WR_BUTTONSTATUS_RELEASED)	
+					pPlayer->GetPlayerInput()->OnAction(rGameActions.v_attack2, eIS_Released, 1.0f);
 			}
 		}
 	}
@@ -1176,7 +1358,7 @@ void SWiiInputListener::OnSingleMotion(IWR_WiiRemote *pRemote, IWR_WiiMotion *pM
 
 						// Clamp to its AABB (in local space)
 						AABB aabb = pManager->m_pLockedEntity->GetBBox();
-						Vec3 vPos(pManager->m_pLockedEntity->GetPos(true));
+						Vec3 vPos = aabb.GetCenter()+Vec3(0.f,0.f,(aabb.max.z-aabb.min.z)*0.25f);
 						aabb.max -= vPos;
 						aabb.min -= vPos;
 						if (pManager->m_vLockedEntityOffset.x < aabb.min.x) pManager->m_vLockedEntityOffset.x = aabb.min.x;
@@ -1216,7 +1398,7 @@ void SWiiInputListener::OnSingleMotion(IWR_WiiRemote *pRemote, IWR_WiiMotion *pM
 						Vec3 vPlanarForward(vForward.x,vForward.y,0.0f);
 						const float fPitch = acosf(vForward.Dot(vPlanarForward)) * (vForward.z < 0.0f ? -1.0f : 1.0f);
 						const float fMotionPitch = DEG2RAD(180.0f) * (motion.fPitch / DEG2RAD(CHECK_PROFILE_FLOAT(Veh_LookUpMaxTilt)));
-						const float fDelta = (fMotionPitch * (true == CHECK_PROFILE_BOOL(InverseLook) ? -1.0f : 1.0f)) - fPitch;
+						const float fDelta = (fMotionPitch * (true == CHECK_PROFILE_BOOL(Veh_InverseLook) ? -1.0f : 1.0f)) - fPitch;
 						float fLookUp = 0.0f;
 						if (RAD2DEG(fabs(fDelta)) >= (CHECK_PROFILE_FLOAT(Veh_LookUpError) * (180.0f/CHECK_PROFILE_FLOAT(Veh_LookUpMaxTilt))))
 						{
@@ -1264,7 +1446,7 @@ void SWiiInputListener::OnSingleMotion(IWR_WiiRemote *pRemote, IWR_WiiMotion *pM
 					Vec3 vPlanarForward(vForward.x,vForward.y,0.0f);
 					const float fPitch = acosf(vForward.Dot(vPlanarForward)) * (vForward.z < 0.0f ? -1.0f : 1.0f);
 					const float fMotionPitch = DEG2RAD(180.0f) * (motion.fPitch / DEG2RAD(CHECK_PROFILE_FLOAT(Veh_LookUpMaxTilt)));
-					const float fDelta = (fMotionPitch * (true == CHECK_PROFILE_BOOL(InverseLook) ? -1.0f : 1.0f)) - fPitch;
+					const float fDelta = (fMotionPitch * (true == CHECK_PROFILE_BOOL(Veh_InverseLook) ? -1.0f : 1.0f)) - fPitch;
 					float fLookUp = 0.0f;
 					if (RAD2DEG(fabs(fDelta)) >= (CHECK_PROFILE_FLOAT(Veh_LookUpError) * (180.0f/CHECK_PROFILE_FLOAT(Veh_LookUpMaxTilt))))
 					{
@@ -1302,7 +1484,245 @@ void SWiiInputListener::OnSingleMotion(IWR_WiiRemote *pRemote, IWR_WiiMotion *pM
 
 					// Clamp to its AABB (in local space)
 					AABB aabb = pManager->m_pLockedEntity->GetBBox();
-					Vec3 vPos(pManager->m_pLockedEntity->GetPos(true));
+					Vec3 vPos = aabb.GetCenter()+Vec3(0.f,0.f,(aabb.max.z-aabb.min.z)*0.25f);
+					aabb.max -= vPos;
+					aabb.min -= vPos;
+					if (pManager->m_vLockedEntityOffset.x < aabb.min.x) pManager->m_vLockedEntityOffset.x = aabb.min.x;
+					if (pManager->m_vLockedEntityOffset.x > aabb.max.x) pManager->m_vLockedEntityOffset.x = aabb.max.x;
+					if (pManager->m_vLockedEntityOffset.y < aabb.min.y) pManager->m_vLockedEntityOffset.y = aabb.min.y;
+					if (pManager->m_vLockedEntityOffset.y > aabb.max.y) pManager->m_vLockedEntityOffset.y = aabb.max.y;
+					if (pManager->m_vLockedEntityOffset.z < aabb.min.z) pManager->m_vLockedEntityOffset.z = aabb.min.z;
+					if (pManager->m_vLockedEntityOffset.z > aabb.max.z) pManager->m_vLockedEntityOffset.z = aabb.max.z;
+				}
+			}
+		}
+		else if (nState == STATE_VTOLVEHICLE)
+		{
+			// Get vehicle
+			IVehicle* pVehicle = NULL;
+			IPlayerInput *pPlayerInput = NULL;
+			if (pVehicle = pPlayer->GetLinkedVehicle())
+			{
+				// Send it through actions
+				pPlayerInput = pPlayer->GetPlayerInput();
+			}
+			if (NULL != pPlayerInput)
+			{
+				bool bInLockRetain = (true == pManager->m_bLockView && true == CHECK_PROFILE_BOOL(RetainViewMode));
+				if ((false == pManager->m_bLockView) || (true == bInLockRetain && NULL == pManager->m_pLockedEntity))
+				{
+					// Ignore if using IR sensor
+					if (false == UsingIRSensor())
+					{
+						// Pitch update
+						float fPitch = 0.0f;
+						const float fPitchMin = CHECK_PROFILE_FLOAT(VTOL_PitchTilt);
+						if (fabs(motion.fPitch) >= DEG2RAD(fPitchMin))
+						{
+							fPitch = -motion.fPitch*(CHECK_PROFILE_BOOL(VTOL_InverseLook)?-1.0f:1.0f)*CHECK_PROFILE_FLOAT(VTOL_PitchSensitivity);
+						}
+
+						// Turn update
+						float fTurn = 0.0f;
+						const float fTurnMin = CHECK_PROFILE_FLOAT(VTOL_TurnTilt);
+						if (fabs(motion.fRoll) >= DEG2RAD(fTurnMin))
+						{
+							fTurn = motion.fRoll*CHECK_PROFILE_FLOAT(VTOL_TurnSensitivity);
+						}
+
+						// Scale if in third person view or if gunner
+						bool bIsGunner = false;
+						IVehicleSeat *pSeat = pVehicle->GetSeatForPassenger(pPlayer->GetEntityId());
+						if (pSeat)
+						{
+							bIsGunner = (pSeat->IsGunner() && !pSeat->IsDriver());
+
+							IVehicleView *pView = pSeat->GetView(pSeat->GetCurrentView());
+							if (pView && pView->IsThirdPerson())
+							{
+								fPitch *= 400.0f*gEnv->pTimer->GetFrameTime();
+								fTurn *= 200.0f*gEnv->pTimer->GetFrameTime();
+							}
+							else if (true == bIsGunner)
+							{
+								fPitch *= 400.0f*gEnv->pTimer->GetFrameTime();
+								fTurn *= 200.0f*gEnv->pTimer->GetFrameTime();
+							}
+						}
+
+						// Look around
+						if (false == bIsGunner)
+						{
+							CVehicleMovementVTOL *pVM = (CVehicleMovementVTOL*)pPlayer->GetLinkedVehicle()->GetMovement();
+							pVM->OnAction(eVAI_RotatePitch, eAAM_Always, fPitch);
+							pVM->OnAction(eVAI_RotateYaw, eAAM_Always, fTurn);
+						}
+						else
+						{
+							pPlayerInput->OnAction(rGameActions.v_rotatepitch, eAAM_Always, fPitch);
+							pPlayerInput->OnAction(rGameActions.v_rotateyaw, eAAM_Always, fTurn);
+						}
+					}
+				}
+				else if (true == bInLockRetain && NULL != pManager->m_pLockedEntity && false == CHECK_PROFILE_BOOL(HardLockView))
+				{
+					// Get move speeds based on sensitivity and dead zones
+					float fMovePitch = 0.0f, fMoveRoll = 0.0f;
+					if (fabs(motion.fPitch) >= DEG2RAD(CHECK_PROFILE_FLOAT(VTOL_PitchTilt)))
+					{
+						fMovePitch = -motion.fPitch*CHECK_PROFILE_FLOAT(SoftLock_LookUpSensitivity);
+					}
+					if (fabs(motion.fRoll) >= DEG2RAD(CHECK_PROFILE_FLOAT(VTOL_TurnTilt)))
+					{
+						fMoveRoll = -motion.fRoll*CHECK_PROFILE_FLOAT(SoftLock_TurnSensitivity);
+					}
+
+					// Scale if in third person view or if gunner
+					IVehicleSeat *pSeat = pVehicle->GetSeatForPassenger(pPlayer->GetEntityId());
+					if (pSeat)
+					{
+						IVehicleView *pView = pSeat->GetView(pSeat->GetCurrentView());
+						if (pView && pView->IsThirdPerson())
+						{
+							fMovePitch *= 400.0f*gEnv->pTimer->GetFrameTime();
+							fMoveRoll *= 200.0f*gEnv->pTimer->GetFrameTime();
+						}
+						else if (pSeat->IsGunner() && !pSeat->IsDriver())
+						{
+							fMovePitch *= 400.0f*gEnv->pTimer->GetFrameTime();
+							fMoveRoll *= 200.0f*gEnv->pTimer->GetFrameTime();
+						}
+					}
+
+					// Move around
+					Matrix34 mPlayerMat = pPlayer->GetEntity()->GetLocalTM();
+					Vec3 const& vRight = mPlayerMat.GetColumn0();
+					Vec3 const& vUp = mPlayerMat.GetColumn2();
+					pManager->m_vLockedEntityOffset += vRight*fMoveRoll;
+					pManager->m_vLockedEntityOffset += vUp*fMovePitch;
+
+					// Clamp to its AABB (in local space)
+					AABB aabb = pManager->m_pLockedEntity->GetBBox();
+					Vec3 vPos = aabb.GetCenter()+Vec3(0.f,0.f,(aabb.max.z-aabb.min.z)*0.25f);
+					aabb.max -= vPos;
+					aabb.min -= vPos;
+					if (pManager->m_vLockedEntityOffset.x < aabb.min.x) pManager->m_vLockedEntityOffset.x = aabb.min.x;
+					if (pManager->m_vLockedEntityOffset.x > aabb.max.x) pManager->m_vLockedEntityOffset.x = aabb.max.x;
+					if (pManager->m_vLockedEntityOffset.y < aabb.min.y) pManager->m_vLockedEntityOffset.y = aabb.min.y;
+					if (pManager->m_vLockedEntityOffset.y > aabb.max.y) pManager->m_vLockedEntityOffset.y = aabb.max.y;
+					if (pManager->m_vLockedEntityOffset.z < aabb.min.z) pManager->m_vLockedEntityOffset.z = aabb.min.z;
+					if (pManager->m_vLockedEntityOffset.z > aabb.max.z) pManager->m_vLockedEntityOffset.z = aabb.max.z;
+				}
+			}
+		}
+		else if (nState == STATE_HELIVEHICLE)
+		{
+			// Get vehicle
+			IVehicle* pVehicle = NULL;
+			IPlayerInput *pPlayerInput = NULL;
+			if (pVehicle = pPlayer->GetLinkedVehicle())
+			{
+				// Send it through actions
+				pPlayerInput = pPlayer->GetPlayerInput();
+			}
+			if (NULL != pPlayerInput)
+			{
+				bool bInLockRetain = (true == pManager->m_bLockView && true == CHECK_PROFILE_BOOL(RetainViewMode));
+				if ((false == pManager->m_bLockView) || (true == bInLockRetain && NULL == pManager->m_pLockedEntity))
+				{
+					// Ignore if using IR sensor
+					if (false == UsingIRSensor())
+					{
+						// Pitch update
+						float fPitch = 0.0f;
+						const float fPitchMin = CHECK_PROFILE_FLOAT(Heli_PitchTilt);
+						if (fabs(motion.fPitch) >= DEG2RAD(fPitchMin))
+						{
+							fPitch = -motion.fPitch*(CHECK_PROFILE_BOOL(Heli_InverseLook)?-1.0f:1.0f)*CHECK_PROFILE_FLOAT(Heli_PitchSensitivity);
+						}
+
+						// Turn update
+						float fTurn = 0.0f;
+						const float fTurnMin = CHECK_PROFILE_FLOAT(Heli_TurnTilt);
+						if (fabs(motion.fRoll) >= DEG2RAD(fTurnMin))
+						{
+							fTurn = motion.fRoll*CHECK_PROFILE_FLOAT(Heli_TurnSensitivity);
+						}
+
+						// Scale if in third person view or if gunner
+						bool bIsGunner = false;
+						IVehicleSeat *pSeat = pVehicle->GetSeatForPassenger(pPlayer->GetEntityId());
+						if (pSeat)
+						{
+							bIsGunner = (pSeat->IsGunner() && !pSeat->IsDriver());
+
+							IVehicleView *pView = pSeat->GetView(pSeat->GetCurrentView());
+							if (pView && pView->IsThirdPerson())
+							{
+								fPitch *= 400.0f*gEnv->pTimer->GetFrameTime();
+								fTurn *= 200.0f*gEnv->pTimer->GetFrameTime();
+							}
+							else if (true == bIsGunner)
+							{
+								fPitch *= 400.0f*gEnv->pTimer->GetFrameTime();
+								fTurn *= 200.0f*gEnv->pTimer->GetFrameTime();
+							}
+						}
+
+						// Look around
+						if (false == bIsGunner)
+						{
+							CVehicleMovementHelicopter *pVM = (CVehicleMovementHelicopter*)pPlayer->GetLinkedVehicle()->GetMovement();
+							pVM->OnAction(eVAI_RotatePitch, eAAM_Always, fPitch);
+							pVM->OnAction(eVAI_RotateYaw, eAAM_Always, fTurn);
+						}
+						else
+						{
+							pPlayerInput->OnAction(rGameActions.v_rotatepitch, eAAM_Always, fPitch);
+							pPlayerInput->OnAction(rGameActions.v_rotateyaw, eAAM_Always, fTurn);
+						}
+					}
+				}
+				else if (true == bInLockRetain && NULL != pManager->m_pLockedEntity && false == CHECK_PROFILE_BOOL(HardLockView))
+				{
+					// Get move speeds based on sensitivity and dead zones
+					float fMovePitch = 0.0f, fMoveRoll = 0.0f;
+					if (fabs(motion.fPitch) >= DEG2RAD(CHECK_PROFILE_FLOAT(Heli_PitchTilt)))
+					{
+						fMovePitch = -motion.fPitch*CHECK_PROFILE_FLOAT(SoftLock_LookUpSensitivity);
+					}
+					if (fabs(motion.fRoll) >= DEG2RAD(CHECK_PROFILE_FLOAT(Heli_TurnTilt)))
+					{
+						fMoveRoll = -motion.fRoll*CHECK_PROFILE_FLOAT(SoftLock_TurnSensitivity);
+					}
+
+					// Scale if in third person view or if gunner
+					IVehicleSeat *pSeat = pVehicle->GetSeatForPassenger(pPlayer->GetEntityId());
+					if (pSeat)
+					{
+						IVehicleView *pView = pSeat->GetView(pSeat->GetCurrentView());
+						if (pView && pView->IsThirdPerson())
+						{
+							fMovePitch *= 400.0f*gEnv->pTimer->GetFrameTime();
+							fMoveRoll *= 200.0f*gEnv->pTimer->GetFrameTime();
+						}
+						else if (pSeat->IsGunner() && !pSeat->IsDriver())
+						{
+							fMovePitch *= 400.0f*gEnv->pTimer->GetFrameTime();
+							fMoveRoll *= 200.0f*gEnv->pTimer->GetFrameTime();
+						}
+					}
+
+					// Move around
+					Matrix34 mPlayerMat = pPlayer->GetEntity()->GetLocalTM();
+					Vec3 const& vRight = mPlayerMat.GetColumn0();
+					Vec3 const& vUp = mPlayerMat.GetColumn2();
+					pManager->m_vLockedEntityOffset += vRight*fMoveRoll;
+					pManager->m_vLockedEntityOffset += vUp*fMovePitch;
+
+					// Clamp to its AABB (in local space)
+					AABB aabb = pManager->m_pLockedEntity->GetBBox();
+					Vec3 vPos = aabb.GetCenter()+Vec3(0.f,0.f,(aabb.max.z-aabb.min.z)*0.25f);
 					aabb.max -= vPos;
 					aabb.min -= vPos;
 					if (pManager->m_vLockedEntityOffset.x < aabb.min.x) pManager->m_vLockedEntityOffset.x = aabb.min.x;
@@ -1578,6 +1998,196 @@ void CWiiRemoteManager::UpdatePlayerMovement(void)
 
 		AddPlayerVehicleMovementAction(pPlayer, action);
 	}
+	else if (g_WiiInputListener.nState == STATE_VTOLVEHICLE)
+	{
+		CVehicleMovementVTOL *pVM = (CVehicleMovementVTOL*)pPlayer->GetLinkedVehicle()->GetMovement();
+		bool bUseStickStrafe = CHECK_PROFILE_BOOL(VTOL_UseStickStrafe);
+
+		// Forward/backwards movement
+		if (fY >= 0.05f)
+		{
+			pVM->OnAction(eVAI_MoveBack, eAAM_OnRelease, 0.0f);
+			pVM->OnAction(eVAI_MoveForward, eAAM_OnPress, fY);
+		}
+		else if (fY <= -0.05f)
+		{
+			pVM->OnAction(eVAI_MoveForward, eAAM_OnRelease, 0.0f);
+			pVM->OnAction(eVAI_MoveBack, eAAM_OnPress, -fY);
+		}
+		else
+		{
+			pVM->OnAction(eVAI_MoveForward, eAAM_OnRelease, 0.0f);
+			pVM->OnAction(eVAI_MoveBack, eAAM_OnRelease, 0.0f);
+		}
+
+		// Strafeing
+		if (true == bUseStickStrafe)
+		{
+			if (fX >= 0.05f)
+			{
+				pVM->OnAction(eVAI_StrafeLeft, eAAM_OnRelease, 0.0f);
+				pVM->OnAction(eVAI_StrafeRight, eAAM_OnPress, fX);
+			}
+			else if (fX <= -0.05f)
+			{
+				pVM->OnAction(eVAI_StrafeRight, eAAM_OnRelease, 0.0f);
+				pVM->OnAction(eVAI_StrafeLeft, eAAM_OnPress, -fX);
+			}
+			else
+			{
+				pVM->OnAction(eVAI_StrafeLeft, eAAM_OnRelease, 0.0f);
+				pVM->OnAction(eVAI_StrafeRight, eAAM_OnRelease, 0.0f);
+			}
+		}
+		else
+		{
+			float fRoll = ((CWR_WiiNunchuk*)m_pRemote->GetExtensionHelper())->GetRoll();
+			const float fDZ = CHECK_PROFILE_FLOAT(VTOL_HTilt);
+			if (fRoll >= DEG2RAD(fDZ))
+			{
+				float fSpeed = CLAMP((fRoll*(1.0f/DEG2RAD(90.0f))) * CHECK_PROFILE_FLOAT(VTOL_HSensitivity),0.0f,1.0f);
+				pVM->OnAction(eVAI_StrafeLeft, eAAM_OnRelease, 0.0f);
+				pVM->OnAction(eVAI_StrafeRight, eAAM_OnPress, fSpeed);
+			}
+			else if (fRoll <= DEG2RAD(fDZ))
+			{
+				float fSpeed = CLAMP((-fRoll*(1.0f/DEG2RAD(90.0f))) * CHECK_PROFILE_FLOAT(VTOL_HSensitivity),0.0f,1.0f);
+				pVM->OnAction(eVAI_StrafeRight, eAAM_OnRelease, 0.0f);
+				pVM->OnAction(eVAI_StrafeLeft, eAAM_OnPress, fSpeed);
+			}
+			else
+			{
+				pVM->OnAction(eVAI_StrafeLeft, eAAM_OnRelease, 0.0f);
+				pVM->OnAction(eVAI_StrafeRight, eAAM_OnRelease, 0.0f);
+			}
+		}
+
+		// Rolling
+		if (false == bUseStickStrafe)
+		{
+			if (fX >= 0.05f)
+			{
+				pVM->OnAction(eVAI_RollLeft, eAAM_OnRelease, 0.0f);
+				pVM->OnAction(eVAI_RollRight, eAAM_OnPress, fX);
+			}
+			else if (fX <= -0.05f)
+			{
+				pVM->OnAction(eVAI_RollRight, eAAM_OnRelease, 0.0f);
+				pVM->OnAction(eVAI_RollLeft, eAAM_OnPress, -fX);
+			}
+			else
+			{
+				pVM->OnAction(eVAI_RollLeft, eAAM_OnRelease, 0.0f);
+				pVM->OnAction(eVAI_RollRight, eAAM_OnRelease, 0.0f);
+			}
+		}
+		else
+		{
+			float fRoll = ((CWR_WiiNunchuk*)m_pRemote->GetExtensionHelper())->GetRoll();
+			const float fDZ = CHECK_PROFILE_FLOAT(VTOL_HTilt);
+			if (fRoll >= DEG2RAD(fDZ))
+			{
+				float fSpeed = CLAMP((fRoll*(1.0f/DEG2RAD(90.0f))) * CHECK_PROFILE_FLOAT(VTOL_HSensitivity),0.0f,1.0f);
+				pVM->OnAction(eVAI_RollLeft, eAAM_OnRelease, 0.0f);
+				pVM->OnAction(eVAI_RollRight, eAAM_OnPress, fSpeed);
+			}
+			else if (fRoll <= DEG2RAD(fDZ))
+			{
+				float fSpeed = CLAMP((-fRoll*(1.0f/DEG2RAD(90.0f))) * CHECK_PROFILE_FLOAT(VTOL_HSensitivity),0.0f,1.0f);
+				pVM->OnAction(eVAI_RollRight, eAAM_OnRelease, 0.0f);
+				pVM->OnAction(eVAI_RollLeft, eAAM_OnPress, fSpeed);
+			}
+			else
+			{
+				pVM->OnAction(eVAI_RollLeft, eAAM_OnRelease, 0.0f);
+				pVM->OnAction(eVAI_RollRight, eAAM_OnRelease, 0.0f);
+			}
+		}
+
+		// Check nunchuk pitch for vertical movement
+		float fPitch = ((CWR_WiiNunchuk*)m_pRemote->GetExtensionHelper())->GetPitch();
+		const float fDZ = CHECK_PROFILE_FLOAT(VTOL_VTilt);
+		if (fPitch >= DEG2RAD(fDZ))
+		{
+			float fSpeed = CLAMP((fPitch*(1.0f/DEG2RAD(90.0f))) * CHECK_PROFILE_FLOAT(VTOL_VSensitivity),0.0f,1.0f);
+			pVM->OnAction(eVAI_MoveDown, eAAM_OnRelease, 0.0f);
+			pVM->OnAction(eVAI_MoveUp, eAAM_OnPress, fSpeed);
+		}
+		else if (fPitch <= DEG2RAD(-fDZ))
+		{
+			float fSpeed = CLAMP((-fPitch*(1.0f/DEG2RAD(90.0f))) * CHECK_PROFILE_FLOAT(VTOL_VSensitivity),0.0f,1.0f);
+			pVM->OnAction(eVAI_MoveUp, eAAM_OnRelease, 0.0f);
+			pVM->OnAction(eVAI_MoveDown, eAAM_OnPress, fSpeed);
+		}
+		else
+		{
+			pVM->OnAction(eVAI_MoveUp, eAAM_OnRelease, 0.0f);
+			pVM->OnAction(eVAI_MoveDown, eAAM_OnRelease, 0.0f);
+		}
+	}
+	else if (g_WiiInputListener.nState == STATE_HELIVEHICLE)
+	{
+		CVehicleMovementHelicopter *pVM = (CVehicleMovementHelicopter*)pPlayer->GetLinkedVehicle()->GetMovement();
+
+		// Forward/backwards movement
+		if (fY >= 0.05f)
+		{
+			pVM->OnAction(eVAI_MoveDown, eAAM_OnRelease, 0.0f);
+			pVM->OnAction(eVAI_MoveUp, eAAM_OnPress, fY);
+		}
+		else if (fY <= -0.05f)
+		{
+			pVM->OnAction(eVAI_MoveUp, eAAM_OnRelease, 0.0f);
+			pVM->OnAction(eVAI_MoveDown, eAAM_OnPress, -fY);
+		}
+		else
+		{
+			pVM->OnAction(eVAI_MoveUp, eAAM_OnRelease, 0.0f);
+			pVM->OnAction(eVAI_MoveDown, eAAM_OnRelease, 0.0f);
+		}
+
+		// Rolling
+		if (true == CHECK_PROFILE_BOOL(Heli_UseStickRoll))
+		{
+			if (fX >= 0.05f)
+			{
+				pVM->OnAction(eVAI_RollLeft, eAAM_OnRelease, 0.0f);
+				pVM->OnAction(eVAI_RollRight, eAAM_OnPress, fX);
+			}
+			else if (fX <= -0.05f)
+			{
+				pVM->OnAction(eVAI_RollRight, eAAM_OnRelease, 0.0f);
+				pVM->OnAction(eVAI_RollLeft, eAAM_OnPress, -fX);
+			}
+			else
+			{
+				pVM->OnAction(eVAI_RollLeft, eAAM_OnRelease, 0.0f);
+				pVM->OnAction(eVAI_RollRight, eAAM_OnRelease, 0.0f);
+			}
+		}
+		else
+		{
+			float fRoll = ((CWR_WiiNunchuk*)m_pRemote->GetExtensionHelper())->GetRoll();
+			const float fDZ = CHECK_PROFILE_FLOAT(Heli_RollTilt);
+			if (fRoll >= DEG2RAD(fDZ))
+			{
+				float fSpeed = CLAMP((fRoll*(1.0f/DEG2RAD(90.0f))) * CHECK_PROFILE_FLOAT(Heli_RollSensitivity),0.0f,1.0f);
+				pVM->OnAction(eVAI_RollLeft, eAAM_OnRelease, 0.0f);
+				pVM->OnAction(eVAI_RollRight, eAAM_OnPress, fSpeed);
+			}
+			else if (fRoll <= DEG2RAD(fDZ))
+			{
+				float fSpeed = CLAMP((-fRoll*(1.0f/DEG2RAD(90.0f))) * CHECK_PROFILE_FLOAT(Heli_RollSensitivity),0.0f,1.0f);
+				pVM->OnAction(eVAI_RollRight, eAAM_OnRelease, 0.0f);
+				pVM->OnAction(eVAI_RollLeft, eAAM_OnPress, fSpeed);
+			}
+			else
+			{
+				pVM->OnAction(eVAI_RollLeft, eAAM_OnRelease, 0.0f);
+				pVM->OnAction(eVAI_RollRight, eAAM_OnRelease, 0.0f);
+			}
+		}
+	}
 	else if (CHUD *pHUD = m_pGame->GetHUD())
 	{
 		if (g_WiiInputListener.nState == STATE_NANOSUITMENU)
@@ -1605,13 +2215,13 @@ void CWiiRemoteManager::UpdatePlayerMovement(void)
 		IMovementController *pMC = pPlayer->GetMovementController();
 
 		// Find entity to lock on to
-		if (NULL == m_pLockedEntity && NULL != pMC)
+		if ((NULL == m_pLockedEntity || false == m_bLockedNPC) && NULL != pMC && false == m_bForceLockView)
 		{
 			// See if we are looking at one now
 			SMovementState info; pMC->GetMovementState(info);
 			Vec3 vPlayerForward = info.fireDirection * CHECK_PROFILE_FLOAT(MaxLockViewDist);
 			Vec3 vPlayerPos(PlayerCam.GetPosition());
-			ray_hit hit;
+			ray_hit actorHit, objectHit;
 			IPhysicalEntity *pSkip[3] = {pPlayer->GetEntity()->GetPhysics(), NULL, NULL};
 			if (pPlayer->GetLinkedVehicle())
 				pSkip[1] = pPlayer->GetLinkedVehicle()->GetEntity()->GetPhysics();
@@ -1622,16 +2232,25 @@ void CWiiRemoteManager::UpdatePlayerMovement(void)
 				if (IEntity *pEnt = gEnv->pEntitySystem->GetEntity(pOffHand->GetHeldEntityId()))
 					pSkip[2] = pEnt->GetPhysics();
 			}
-			if (gEnv->pPhysicalWorld->RayWorldIntersection(vPlayerPos, vPlayerForward, (ent_static|ent_rigid|ent_sleeping_rigid|ent_living), 
-					(rwi_stop_at_pierceable|rwi_colltype_any), &hit, 1, pSkip, 3) &&
-				NULL != hit.pCollider)
+
+			// Perform a trace on actors and on objects
+			int nActorHit = gEnv->pPhysicalWorld->RayWorldIntersection(vPlayerPos, vPlayerForward, (ent_independent), 
+				(rwi_stop_at_pierceable|rwi_colltype_any|rwi_ignore_back_faces), &actorHit, 1, pSkip, 3);
+			int nObjectHit = 0;
+			if (NULL == m_pLockedEntity)
+				nObjectHit = gEnv->pPhysicalWorld->RayWorldIntersection(vPlayerPos, vPlayerForward, (ent_static|ent_rigid|ent_sleeping_rigid|ent_living), 
+					(rwi_stop_at_pierceable|rwi_colltype_any|rwi_ignore_back_faces), &objectHit, 1, pSkip, 3);
+
+			// Try to take the actor over the object
+			ray_hit *pHit = ((nActorHit && actorHit.pCollider) ? &actorHit : ((nObjectHit && objectHit.pCollider) ? &objectHit : NULL));
+			if (NULL != pHit)
 			{
-				if (IEntity *pEnt = (IEntity*)hit.pCollider->GetForeignData(PHYS_FOREIGN_ID_ENTITY))
+				if (IEntity *pEnt = (IEntity*)pHit->pCollider->GetForeignData(PHYS_FOREIGN_ID_ENTITY))
 				{
 					if (IEntityRenderProxy *pRenderProxy = (IEntityRenderProxy*)pEnt->GetProxy(ENTITY_PROXY_RENDER))
 						m_pLockedEntity = pRenderProxy->GetRenderNode();
 				}
-				else if (IRenderNode *pRndNode = (IRenderNode*)hit.pCollider->GetForeignData(PHYS_FOREIGN_ID_STATIC))
+				else if (IRenderNode *pRndNode = (IRenderNode*)pHit->pCollider->GetForeignData(PHYS_FOREIGN_ID_STATIC))
 				{
 					m_pLockedEntity = pRndNode;
 				}
@@ -1640,11 +2259,20 @@ void CWiiRemoteManager::UpdatePlayerMovement(void)
 					// Set offset point to maintain hit point when using only remote
 					//if (false == UsingIRSensor())
 					{
-						Vec3 vPos = m_pLockedEntity->GetPos(true);
-						pe_status_dynamics dyn;
-						if (m_pLockedEntity->GetPhysics() && m_pLockedEntity->GetPhysics()->GetStatus(&dyn))
-							vPos = dyn.centerOfMass;
-						m_vLockedEntityOffset = hit.pt - vPos;
+						AABB aabb = m_pLockedEntity->GetBBox();
+						Vec3 vPos = aabb.GetCenter()+Vec3(0.f,0.f,(aabb.max.z-aabb.min.z)*0.25f);
+						if (pHit == &objectHit)
+						{
+							// Use offset from hit point to position
+							m_bLockedNPC = false;
+							m_vLockedEntityOffset = pHit->pt - vPos;
+						}
+						else
+						{
+							// Use 0-based offset (to retain center position)
+							m_bLockedNPC = true;
+							m_vLockedEntityOffset.Set(0,0,0);
+						}
 					}
 				}
 			}
@@ -1653,7 +2281,7 @@ void CWiiRemoteManager::UpdatePlayerMovement(void)
 		{
 			// If it has been picked up by us, drop focus on it
 			COffHand* pOffHand = static_cast<COffHand*>(pPlayer->GetWeaponByClass(CItem::sOffHandClass));
-			if (NULL != pOffHand && pOffHand->GetOffHandState()&(eOHS_HOLDING_OBJECT|eOHS_HOLDING_NPC|eOHS_THROWING_OBJECT|eOHS_THROWING_NPC))
+			if (NULL != pOffHand /*&& pOffHand->GetOffHandState()&(eOHS_HOLDING_OBJECT|eOHS_HOLDING_NPC|eOHS_THROWING_OBJECT|eOHS_THROWING_NPC)*/)
 			{
 				if (IEntity *pHeldEntity = gEnv->pEntitySystem->GetEntity(pOffHand->GetHeldEntityId()))
 					if (IEntityRenderProxy *pRenderProxy = (IEntityRenderProxy*)pHeldEntity->GetProxy(ENTITY_PROXY_RENDER))
@@ -1661,6 +2289,7 @@ void CWiiRemoteManager::UpdatePlayerMovement(void)
 						{
 							// Same. Drop it
 							m_pLockedEntity = NULL;
+							m_bLockedNPC = false;
 
 							// Enter force lock to retain lock view
 							m_bForceLockView = true;
@@ -1669,10 +2298,8 @@ void CWiiRemoteManager::UpdatePlayerMovement(void)
 		}
 		if (NULL != m_pLockedEntity && NULL == pPlayer->GetLinkedVehicle())
 		{
-			Vec3 vPos = m_pLockedEntity->GetPos(true);
-			pe_status_dynamics dyn;
-			if (m_pLockedEntity->GetPhysics() && m_pLockedEntity->GetPhysics()->GetStatus(&dyn))
-				vPos = dyn.centerOfMass;
+			AABB aabb = m_pLockedEntity->GetBBox();
+			Vec3 vPos = aabb.GetCenter()+Vec3(0.f,0.f,(aabb.max.z-aabb.min.z)*0.25f);
 
 			// Look at its point plus move offset
 			Vec3 vLookAtPt = vPos + m_vLockedEntityOffset;
@@ -1752,7 +2379,8 @@ void SWiiInputListener::OnCursorUpdate(IWR_WiiRemote *pRemote, IWR_WiiSensor *pS
 	CPlayer *pPlayer = GetPlayer();
 	if (NULL == pPlayer) return;
 	
-	if (nState == STATE_PLAYER || nState == STATE_BINOCULARS || nState == STATE_LANDVEHICLE || nState == STATE_SEAVEHICLE)
+	if (nState == STATE_PLAYER || nState == STATE_BINOCULARS || nState == STATE_LANDVEHICLE || nState == STATE_SEAVEHICLE ||
+		nState == STATE_VTOLVEHICLE || nState == STATE_HELIVEHICLE)
 	{
 		bool bInLockRetain = (true == pManager->m_bLockView && true == CHECK_PROFILE_BOOL(RetainViewMode));
 		if (true == pManager->m_bForceLockView || true == pManager->IsMovementFrozen() || 
@@ -1781,10 +2409,24 @@ void SWiiInputListener::OnCursorUpdate(IWR_WiiRemote *pRemote, IWR_WiiSensor *pS
 
 				float fTurnSensitivity = CHECK_PROFILE_FLOAT(IRSensor_TurnSensitivity);
 				float fLookUpSensitivity = CHECK_PROFILE_FLOAT(IRSensor_LookUpSensitivity);
-				if (nState != STATE_PLAYER && nState != STATE_BINOCULARS)
+				bool bInverseLook = CHECK_PROFILE_BOOL(InverseLook);
+				if (nState == STATE_LANDVEHICLE || nState == STATE_SEAVEHICLE)
 				{
 					fTurnSensitivity = CHECK_PROFILE_FLOAT(Veh_IRSensor_TurnSensitivity);
 					fLookUpSensitivity = CHECK_PROFILE_FLOAT(Veh_IRSensor_LookUpSensitivity);
+					bInverseLook = CHECK_PROFILE_BOOL(Veh_InverseLook);
+				}
+				else if (nState == STATE_VTOLVEHICLE)
+				{
+					fTurnSensitivity = CHECK_PROFILE_FLOAT(VTOL_IRSensor_TurnSensitivity);
+					fLookUpSensitivity = CHECK_PROFILE_FLOAT(VTOL_IRSensor_PitchSensitivity);
+					bInverseLook = CHECK_PROFILE_BOOL(VTOL_InverseLook);
+				}
+				else if (nState == STATE_HELIVEHICLE)
+				{
+					fTurnSensitivity = CHECK_PROFILE_FLOAT(Heli_IRSensor_TurnSensitivity);
+					fLookUpSensitivity = CHECK_PROFILE_FLOAT(Heli_IRSensor_PitchSensitivity);
+					bInverseLook = CHECK_PROFILE_BOOL(Heli_InverseLook);
 				}
 
 				// Check to see if we need to turn
@@ -1800,45 +2442,62 @@ void SWiiInputListener::OnCursorUpdate(IWR_WiiRemote *pRemote, IWR_WiiSensor *pS
 				}
 
 				// Get angle for look based on cursor point from origin, applied by deadzone
-				float fMotionPitch = 0.0f;
-				static bool bWasInZone = false;
-				if (fY < WII_IRSENSOR_DEADZONE_UP)
+				if (nState != STATE_VTOLVEHICLE && nState != STATE_HELIVEHICLE)
 				{
-					bWasInZone = true;
-					float fRatio = (WII_IRSENSOR_DEADZONE_UP-fY)/(WII_IRSENSOR_DEADZONE_UP);
-					fMotionPitch = 90.0f * fRatio;
-				}
-				else if (fY > WII_IRSENSOR_DEADZONE_DOWN)
-				{
-					bWasInZone = true;
-					float fRatio = (fY-WII_IRSENSOR_DEADZONE_DOWN)/(1.0f-WII_IRSENSOR_DEADZONE_DOWN);
-					fMotionPitch = -90.0f * fRatio;
-				}
-				
-				// Look up/down
-				if (fMotionPitch || bWasInZone)
-				{
-					// Calculat player pitch
-					SMovementState info;
-					pPlayer->GetMovementController()->GetMovementState(info);
-					Vec3 vForward = info.aimDirection;
-					Vec3 vPlanarForward(vForward.x,vForward.y,0.0f);
-					const float fPitch = acosf(vForward.Dot(vPlanarForward)) * (vForward.z < 0.0f ? -1.0f : 1.0f);
-
-					// If the pitch is close to home, we're done
-					if (RAD2DEG(fPitch) >= -CHECK_PROFILE_FLOAT(LookUpError) &&
-						RAD2DEG(fPitch) <= CHECK_PROFILE_FLOAT(LookUpError))
+					float fMotionPitch = 0.0f;
+					static bool bWasInZone = false;
+					if (fY < WII_IRSENSOR_DEADZONE_UP)
 					{
-						bWasInZone = false;
+						bWasInZone = true;
+						float fRatio = (WII_IRSENSOR_DEADZONE_UP-fY)/(WII_IRSENSOR_DEADZONE_UP);
+						fMotionPitch = 90.0f * fRatio;
 					}
-					else
+					else if (fY > WII_IRSENSOR_DEADZONE_DOWN)
 					{
-						// Calculate delta and move towards it at sensitivity speed
-						const float fDelta = DEG2RAD(fMotionPitch) * (CHECK_PROFILE_BOOL(InverseLook) == true ? -1.0f : 1.0f) - fPitch;
-						if (RAD2DEG(fabs(fDelta)) >= CHECK_PROFILE_FLOAT(LookUpError))
+						bWasInZone = true;
+						float fRatio = (fY-WII_IRSENSOR_DEADZONE_DOWN)/(1.0f-WII_IRSENSOR_DEADZONE_DOWN);
+						fMotionPitch = -90.0f * fRatio;
+					}
+					
+					// Look up/down
+					if (fMotionPitch || bWasInZone)
+					{
+						// Calculat player pitch
+						SMovementState info;
+						pPlayer->GetMovementController()->GetMovementState(info);
+						Vec3 vForward = info.aimDirection;
+						Vec3 vPlanarForward(vForward.x,vForward.y,0.0f);
+						const float fPitch = acosf(vForward.Dot(vPlanarForward)) * (vForward.z < 0.0f ? -1.0f : 1.0f);
+
+						// If the pitch is close to home, we're done
+						if (RAD2DEG(fPitch) >= -CHECK_PROFILE_FLOAT(LookUpError) &&
+							RAD2DEG(fPitch) <= CHECK_PROFILE_FLOAT(LookUpError))
 						{
-							fLookUp = fDelta * fLookUpSensitivity;
+							bWasInZone = false;
 						}
+						else
+						{
+							// Calculate delta and move towards it at sensitivity speed
+							const float fDelta = DEG2RAD(fMotionPitch) * (bInverseLook == true ? -1.0f : 1.0f) - fPitch;
+							if (RAD2DEG(fabs(fDelta)) >= CHECK_PROFILE_FLOAT(LookUpError))
+							{
+								fLookUp = fDelta * fLookUpSensitivity;
+							}
+						}
+					}
+				}
+				else
+				{
+					// Check to see if we need to adjust pitch
+					if (fY < WII_IRSENSOR_DEADZONE_UP)
+					{
+						float fRatio = (WII_IRSENSOR_DEADZONE_UP-fY)/(WII_IRSENSOR_DEADZONE_UP);
+						fLookUp = fRatio*fLookUpSensitivity;
+					}
+					else if (fY > WII_IRSENSOR_DEADZONE_DOWN)
+					{
+						float fRatio = (fY-WII_IRSENSOR_DEADZONE_DOWN)/(1.0f-WII_IRSENSOR_DEADZONE_DOWN);
+						fLookUp = -fRatio*fLookUpSensitivity;
 					}
 				}
 				
@@ -1849,7 +2508,7 @@ void SWiiInputListener::OnCursorUpdate(IWR_WiiRemote *pRemote, IWR_WiiSensor *pS
 					mr.AddDeltaRotation(Ang3(fLookUp,0.0f,fTurn));
 					pPlayer->GetMovementController()->RequestMovement(mr);
 				}
-				else
+				else if (nState == STATE_LANDVEHICLE || nState == STATE_SEAVEHICLE)
 				{
 					// Vehicle - Alter accordingly
 					// Get vehicle
@@ -1882,6 +2541,51 @@ void SWiiInputListener::OnCursorUpdate(IWR_WiiRemote *pRemote, IWR_WiiSensor *pS
 						// Look around
 						pPlayerInput->OnAction(rGameActions.v_rotatepitch, eAAM_Always, -fLookUp);
 						pPlayerInput->OnAction(rGameActions.v_rotateyaw, eAAM_Always, -fTurn);
+					}
+				}
+				else
+				{
+					IVehicle* pVehicle = NULL;
+					IPlayerInput *pPlayerInput = NULL;
+					if (pVehicle = pPlayer->GetLinkedVehicle())
+					{
+						// Send it through actions
+						pPlayerInput = pPlayer->GetPlayerInput();
+					}
+					if (NULL != pPlayerInput)
+					{
+						// Scale if in third person view or if gunner
+						bool bIsGunner = false;
+						IVehicleSeat *pSeat = pVehicle->GetSeatForPassenger(pPlayer->GetEntityId());
+						if (pSeat)
+						{
+							bIsGunner = (pSeat->IsGunner() && !pSeat->IsDriver());
+
+							IVehicleView *pView = pSeat->GetView(pSeat->GetCurrentView());
+							if (pView && pView->IsThirdPerson())
+							{
+								fLookUp *= 32.0f*gEnv->pTimer->GetFrameTime();
+								fTurn *= 16.0f*gEnv->pTimer->GetFrameTime();
+							}
+							else if (true == bIsGunner)
+							{
+								fLookUp *= 32.0f*gEnv->pTimer->GetFrameTime();
+								fTurn *= 32.0f*gEnv->pTimer->GetFrameTime();
+							}
+						}
+
+						// Apply through movement controller
+						if (false == bIsGunner)
+						{
+							CVehicleMovementHelicopter *pVM = (CVehicleMovementHelicopter*)pVehicle->GetMovement();
+							pVM->OnAction(eVAI_RotatePitch, eAAM_Always, -fLookUp);
+							pVM->OnAction(eVAI_RotateYaw, eAAM_Always, -fTurn);
+						}
+						else
+						{
+							pPlayerInput->OnAction(rGameActions.v_rotatepitch, eAAM_Always, -fLookUp);
+							pPlayerInput->OnAction(rGameActions.v_rotateyaw, eAAM_Always, -fTurn);
+						}
 					}
 				}
 			}

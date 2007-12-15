@@ -131,10 +131,13 @@ public:
 		COffHand* pOffHand = static_cast<COffHand*>(pPlayer->GetWeaponByClass(CItem::sOffHandClass));
 		if (NULL != pOffHand)
 		{
-			if ((pOffHand->GetOffHandState()&(eOHS_HOLDING_OBJECT|eOHS_HOLDING_NPC)))
+			int nOffHandState = pOffHand->GetOffHandState();
+			if ((nOffHandState&(eOHS_HOLDING_OBJECT|eOHS_THROWING_OBJECT|eOHS_HOLDING_NPC|eOHS_THROWING_NPC)))
 			{
-				pOffHand->OnAction(pPlayer->GetEntityId(), rGameActions.attack1, eIS_Pressed, 1.0f);
-				pOffHand->OnAction(pPlayer->GetEntityId(), rGameActions.attack1, eIS_Released, 1.0f);
+				/*pOffHand->OnAction(pPlayer->GetEntityId(), rGameActions.attack1, eIS_Pressed, 1.0f);
+				pOffHand->OnAction(pPlayer->GetEntityId(), rGameActions.attack1, eIS_Released, 1.0f);*/
+				pOffHand->ThrowObject(eAAM_OnPress,nOffHandState&(eOHS_HOLDING_NPC|eOHS_THROWING_NPC)?true:false);
+				pOffHand->ThrowObject(eAAM_OnRelease,nOffHandState&(eOHS_HOLDING_NPC|eOHS_THROWING_NPC)?true:false);
 				g_pGame->GetWiiRemoteManager()->FreezeMovement();
 				return;
 			}

@@ -74,7 +74,14 @@ public:
 		CBaseMotion::OnUpdate(motion, nState);
 		if (nState == STATE_NANOSUITMENU || nState == STATE_WEAPONMENU) return;
 		if (!CanChangeSeat()) return;
-		const float fSensitivity = CHECK_PROFILE_FLOAT(Veh_SeatNextSensitivity);
+
+		float fSensitivity = 0.0f;
+		if (nState == STATE_LANDVEHICLE || nState == STATE_SEAVEHICLE)
+			fSensitivity = CHECK_PROFILE_FLOAT(Veh_SeatNextSensitivity);
+		else if (nState == STATE_VTOLVEHICLE)
+			fSensitivity = CHECK_PROFILE_FLOAT(VTOL_SeatNextSensitivity);
+		else if (nState == STATE_HELIVEHICLE)
+			fSensitivity = CHECK_PROFILE_FLOAT(Heli_SeatNextSensitivity);
 
 		// If we hit good G, make sure we haven't already hit bad G
 		if (motion.vAccel.x <= -fSensitivity && ((m_nMotionState & STATE_BADG) != STATE_BADG))
@@ -97,7 +104,14 @@ public:
 		CBaseMotion::OnEnd(motion, nState);
 		if (nState == STATE_NANOSUITMENU || nState == STATE_WEAPONMENU) return;
 		if (!CanChangeSeat()) return;
-		const float fSensitivity = CHECK_PROFILE_FLOAT(Veh_SeatNextSensitivity);
+
+		float fSensitivity = 0.0f;
+		if (nState == STATE_LANDVEHICLE || nState == STATE_SEAVEHICLE)
+			fSensitivity = CHECK_PROFILE_FLOAT(Veh_SeatNextSensitivity);
+		else if (nState == STATE_VTOLVEHICLE)
+			fSensitivity = CHECK_PROFILE_FLOAT(VTOL_SeatNextSensitivity);
+		else if (nState == STATE_HELIVEHICLE)
+			fSensitivity = CHECK_PROFILE_FLOAT(Heli_SeatNextSensitivity);
 
 		// If we hit good G, make sure we haven't already hit bad G
 		if (motion.vAccel.x <= -fSensitivity && ((m_nMotionState & STATE_BADG) != STATE_BADG))
@@ -129,6 +143,7 @@ public:
 		if (IVehicleSeat *pSeat = pVehicle->GetSeatForPassenger(pPlayer->GetEntityId()))
 		{
 			TVehicleSeatId nSeatId = pSeat->GetSeatId();
+			TVehicleSeatId nPrevId = nSeatId;
 		
 			// If last seat, select first one; othwerise, select next
 			if (nSeatId == pVehicle->GetLastSeatId())
@@ -137,28 +152,12 @@ public:
 				nSeatId++;
 			
 			// Change to its seat
-			switch (nSeatId)
+			IVehicleSeat *pPrevSeat = pVehicle->GetSeatById(nPrevId);
+			IVehicleSeat *pNextSeat = pVehicle->GetSeatById(nSeatId);
+			if (pPrevSeat && pNextSeat)
 			{
-				case 1:
-					pPlayer->GetPlayerInput()->OnAction(rGameActions.v_changeseat1, eIS_Pressed, 1.0f);
-					pPlayer->GetPlayerInput()->OnAction(rGameActions.v_changeseat1, eIS_Released, 1.0f);
-				break;
-				case 2:
-					pPlayer->GetPlayerInput()->OnAction(rGameActions.v_changeseat2, eIS_Pressed, 1.0f);
-					pPlayer->GetPlayerInput()->OnAction(rGameActions.v_changeseat2, eIS_Released, 1.0f);
-				break;
-				case 3:
-					pPlayer->GetPlayerInput()->OnAction(rGameActions.v_changeseat3, eIS_Pressed, 1.0f);
-					pPlayer->GetPlayerInput()->OnAction(rGameActions.v_changeseat3, eIS_Released, 1.0f);
-				break;
-				case 4:
-					pPlayer->GetPlayerInput()->OnAction(rGameActions.v_changeseat4, eIS_Pressed, 1.0f);
-					pPlayer->GetPlayerInput()->OnAction(rGameActions.v_changeseat4, eIS_Released, 1.0f);
-				break;
-				case 5:
-					pPlayer->GetPlayerInput()->OnAction(rGameActions.v_changeseat5, eIS_Pressed, 1.0f);
-					pPlayer->GetPlayerInput()->OnAction(rGameActions.v_changeseat5, eIS_Released, 1.0f);
-				break;
+				pPrevSeat->Exit(false, true);
+				pNextSeat->Enter(pPlayer->GetEntityId(), false);
 			}
 		}
 	}
@@ -219,7 +218,14 @@ public:
 		CBaseMotion::OnUpdate(motion, nState);
 		if (nState == STATE_NANOSUITMENU || nState == STATE_WEAPONMENU) return;
 		if (!CanChangeSeat()) return;
-		const float fSensitivity = CHECK_PROFILE_FLOAT(Veh_SeatPrevSensitivity);
+
+		float fSensitivity = 0.0f;
+		if (nState == STATE_LANDVEHICLE || nState == STATE_SEAVEHICLE)
+			fSensitivity = CHECK_PROFILE_FLOAT(Veh_SeatPrevSensitivity);
+		else if (nState == STATE_VTOLVEHICLE)
+			fSensitivity = CHECK_PROFILE_FLOAT(VTOL_SeatPrevSensitivity);
+		else if (nState == STATE_HELIVEHICLE)
+			fSensitivity = CHECK_PROFILE_FLOAT(Heli_SeatPrevSensitivity);
 
 		// If we hit good G, make sure we haven't already hit bad G
 		if (motion.vAccel.x >= fSensitivity && ((m_nMotionState & STATE_BADG) != STATE_BADG))
@@ -242,7 +248,14 @@ public:
 		CBaseMotion::OnEnd(motion, nState);
 		if (nState == STATE_NANOSUITMENU || nState == STATE_WEAPONMENU) return;
 		if (!CanChangeSeat()) return;
-		const float fSensitivity = CHECK_PROFILE_FLOAT(Veh_SeatPrevSensitivity);
+
+		float fSensitivity = 0.0f;
+		if (nState == STATE_LANDVEHICLE || nState == STATE_SEAVEHICLE)
+			fSensitivity = CHECK_PROFILE_FLOAT(Veh_SeatPrevSensitivity);
+		else if (nState == STATE_VTOLVEHICLE)
+			fSensitivity = CHECK_PROFILE_FLOAT(VTOL_SeatPrevSensitivity);
+		else if (nState == STATE_HELIVEHICLE)
+			fSensitivity = CHECK_PROFILE_FLOAT(Heli_SeatPrevSensitivity);
 
 		// If we hit good G, make sure we haven't already hit bad G
 		if (motion.vAccel.x >= fSensitivity && ((m_nMotionState & STATE_BADG) != STATE_BADG))
@@ -274,6 +287,7 @@ public:
 		if (IVehicleSeat *pSeat = pVehicle->GetSeatForPassenger(pPlayer->GetEntityId()))
 		{
 			TVehicleSeatId nSeatId = pSeat->GetSeatId();
+			TVehicleSeatId nPrevId = nSeatId;
 		
 			// If first seat, select last one; otherwise, select previous
 			if (nSeatId == 1)
@@ -282,28 +296,12 @@ public:
 				nSeatId--;
 			
 			// Change to its seat
-			switch (nSeatId)
+			IVehicleSeat *pPrevSeat = pVehicle->GetSeatById(nPrevId);
+			IVehicleSeat *pNextSeat = pVehicle->GetSeatById(nSeatId);
+			if (pPrevSeat && pNextSeat)
 			{
-				case 1:
-					pPlayer->GetPlayerInput()->OnAction(rGameActions.v_changeseat1, eIS_Pressed, 1.0f);
-					pPlayer->GetPlayerInput()->OnAction(rGameActions.v_changeseat1, eIS_Released, 1.0f);
-				break;
-				case 2:
-					pPlayer->GetPlayerInput()->OnAction(rGameActions.v_changeseat2, eIS_Pressed, 1.0f);
-					pPlayer->GetPlayerInput()->OnAction(rGameActions.v_changeseat2, eIS_Released, 1.0f);
-				break;
-				case 3:
-					pPlayer->GetPlayerInput()->OnAction(rGameActions.v_changeseat3, eIS_Pressed, 1.0f);
-					pPlayer->GetPlayerInput()->OnAction(rGameActions.v_changeseat3, eIS_Released, 1.0f);
-				break;
-				case 4:
-					pPlayer->GetPlayerInput()->OnAction(rGameActions.v_changeseat4, eIS_Pressed, 1.0f);
-					pPlayer->GetPlayerInput()->OnAction(rGameActions.v_changeseat4, eIS_Released, 1.0f);
-				break;
-				case 5:
-					pPlayer->GetPlayerInput()->OnAction(rGameActions.v_changeseat5, eIS_Pressed, 1.0f);
-					pPlayer->GetPlayerInput()->OnAction(rGameActions.v_changeseat5, eIS_Released, 1.0f);
-				break;
+				pPrevSeat->Exit(false, true);
+				pNextSeat->Enter(pPlayer->GetEntityId(), false);
 			}
 		}
 	}

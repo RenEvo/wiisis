@@ -61,6 +61,7 @@ enum EStates
 	STATE_LANDVEHICLE,
 	STATE_SEAVEHICLE,
 	STATE_HELIVEHICLE,
+	STATE_VTOLVEHICLE,
 };
 
 class CWiiRemoteProfile;
@@ -84,10 +85,15 @@ protected:
 	int m_nBatteryLevelTexture;
 	float m_fBatteryLevel;
 
+	// IR Dot texture info
+	int m_nIRDotTexture;
+	float m_fIRDotWidth, m_fIRDotHeight;
+
 	// Movement status
 	bool m_bSprint;
 	bool m_bLockView;
 	bool m_bForceLockView;
+	bool m_bLockedNPC;
 	IRenderNode *m_pLockedEntity;
 	Vec3 m_vLockedEntityOffset;
 

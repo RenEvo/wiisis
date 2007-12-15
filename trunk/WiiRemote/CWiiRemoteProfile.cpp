@@ -97,9 +97,17 @@ IWiiRemoteProfileVariable const* CWiiRemoteProfile::GetVariable(int nIndex) cons
 ////////////////////////////////////////////////////
 void CWiiRemoteProfile::SetToDefault(void)
 {
-	// Player controls
-	m_Variables[MaxLockViewDist]->Initialize("MaxLockViewDist", "Player", 250.0f);
+	// Options
+	m_Variables[RetainViewMode]->Initialize("RetainViewMode", "Options", true);
+	m_Variables[HardLockView]->Initialize("HardLockView", "Options", true);
+	m_Variables[UseIRSensor]->Initialize("UseIRSensor", "Options", false);
+	m_Variables[ShowIRDot]->Initialize("ShowIRDot", "Options", true);
+	m_Variables[IRDotOpacity]->Initialize("IRDotOpacity", "Options", 0.8f);
+	m_Variables[IRDotOpacity]->SetRange(0.0f, 1.0f);
+	m_Variables[MaxLockViewDist]->Initialize("MaxLockViewDist", "Options", 250.0f);
 	m_Variables[MaxLockViewDist]->SetRange(1.0f);
+
+	// Player controls
 	m_Variables[JumpSensitivity]->Initialize("JumpSensitivity", "Player", 2.0f);
 	m_Variables[JumpSensitivity]->SetRange(1.0f);
 	m_Variables[CrouchTilt]->Initialize("CrouchTilt", "Player", 30.0f);
@@ -145,11 +153,7 @@ void CWiiRemoteProfile::SetToDefault(void)
 	m_Variables[SoftLock_TurnSensitivity]->Initialize("SoftLock_TurnSensitivity", "Player", 0.075f);
 	m_Variables[SoftLock_TurnSensitivity]->SetRange(0.00001f);
 
-	// Options
-	m_Variables[InverseLook]->Initialize("InverseLook", "Options", false);
-	m_Variables[RetainViewMode]->Initialize("RetainViewMode", "Options", true);
-	m_Variables[HardLockView]->Initialize("HardLockView", "Options", true);
-	m_Variables[UseIRSensor]->Initialize("UseIRSensor", "Options", false);
+	m_Variables[InverseLook]->Initialize("InverseLook", "Player", false);
 
 	// Button mapping
 	m_Variables[SprintButton]->Initialize("Button_Sprint", "Player", WIIBTN_C);
@@ -169,48 +173,122 @@ void CWiiRemoteProfile::SetToDefault(void)
 	m_Variables[UseButton]->Initialize("Button_Use", "Player", WIIBTN_DPAD_DOWN);
 
 	// Vehicle sensitivity
-	m_Variables[Veh_LookUpSensitivity]->Initialize("Veh_LookUpSensitivity", "Vehicle", 1.0f);
+	m_Variables[Veh_LookUpSensitivity]->Initialize("LookUpSensitivity", "Vehicle", 1.0f);
 	m_Variables[Veh_LookUpSensitivity]->SetRange(0.001f, 100.0f);
-	m_Variables[Veh_LookUpError]->Initialize("Veh_LookUpError", "Vehicle", 1.5f);
+	m_Variables[Veh_LookUpError]->Initialize("LookUpError", "Vehicle", 1.5f);
 	m_Variables[Veh_LookUpError]->SetRange(0.0f);
-	m_Variables[Veh_LookUpMaxTilt]->Initialize("Veh_LookUpMaxTilt", "Vehicle", 60.0f);
+	m_Variables[Veh_LookUpMaxTilt]->Initialize("LookUpMaxTilt", "Vehicle", 60.0f);
 	m_Variables[Veh_LookUpMaxTilt]->SetRange(10.0f, 90.0f);
-	m_Variables[Veh_TurnSensitivity]->Initialize("Veh_TurnSensitivity", "Vehicle", 5.0f);
+	m_Variables[Veh_TurnSensitivity]->Initialize("TurnSensitivity", "Vehicle", 5.0f);
 	m_Variables[Veh_TurnSensitivity]->SetRange(1.0f);
-	m_Variables[Veh_TurnTilt]->Initialize("Veh_TurnTilt", "Vehicle", 10.0f);
+	m_Variables[Veh_TurnTilt]->Initialize("TurnTilt", "Vehicle", 10.0f);
 	m_Variables[Veh_TurnTilt]->SetRange(0.0f, 90.0f);
-	m_Variables[Veh_SeatPrevSensitivity]->Initialize("Veh_SeatPrevSensitivity", "Vehicle", 1.5f);
+	m_Variables[Veh_SeatPrevSensitivity]->Initialize("SeatPrevSensitivity", "Vehicle", 1.5f);
 	m_Variables[Veh_SeatPrevSensitivity]->SetRange(1.0f);
-	m_Variables[Veh_SeatNextSensitivity]->Initialize("Veh_SeatNextSensitivity", "Vehicle", 1.5f);
+	m_Variables[Veh_SeatNextSensitivity]->Initialize("SeatNextSensitivity", "Vehicle", 1.5f);
 	m_Variables[Veh_SeatNextSensitivity]->SetRange(1.0f);
 
-	m_Variables[Veh_IRSensor_TurnSensitivity]->Initialize("Veh_IRSensor_TurnSensitivity", "Vehicle", 62.5f);
+	m_Variables[Veh_IRSensor_TurnSensitivity]->Initialize("IRSensor_TurnSensitivity", "Vehicle", 62.5f);
 	m_Variables[Veh_IRSensor_TurnSensitivity]->SetRange(1.0f);
-	m_Variables[Veh_IRSensor_LookUpSensitivity]->Initialize("Veh_IRSensor_LookUpSensitivity", "Vehicle", 62.5f);
+	m_Variables[Veh_IRSensor_LookUpSensitivity]->Initialize("IRSensor_LookUpSensitivity", "Vehicle", 62.5f);
 	m_Variables[Veh_IRSensor_LookUpSensitivity]->SetRange(1.0f);
 
-	m_Variables[Veh_UseStickSteer_Land]->Initialize("Veh_UseStickSteer_Land", "Vehicle", false);
-	m_Variables[Veh_SteerTilt_Land]->Initialize("Veh_SteerTilt_Land", "Vehicle", 10.0f);
+	m_Variables[Veh_UseStickSteer_Land]->Initialize("UseStickSteer_Land", "Vehicle", false);
+	m_Variables[Veh_SteerTilt_Land]->Initialize("SteerTilt_Land", "Vehicle", 10.0f);
 	m_Variables[Veh_SteerTilt_Land]->SetRange(0.0f, 90.0f);
-	m_Variables[Veh_SteerSensitivity_Land]->Initialize("Veh_SteerSensitivity_Land", "Vehicle", 0.35f);
+	m_Variables[Veh_SteerSensitivity_Land]->Initialize("SteerSensitivity_Land", "Vehicle", 0.35f);
 	m_Variables[Veh_SteerSensitivity_Land]->SetRange(0.001f);
 
-	m_Variables[Veh_UseStickSteer_Sea]->Initialize("Veh_UseStickSteer_Sea", "Vehicle", false);
-	m_Variables[Veh_SteerTilt_Sea]->Initialize("Veh_SteerTilt_Sea", "Vehicle", 10.0f);
+	m_Variables[Veh_UseStickSteer_Sea]->Initialize("UseStickSteer_Sea", "Vehicle", false);
+	m_Variables[Veh_SteerTilt_Sea]->Initialize("SteerTilt_Sea", "Vehicle", 10.0f);
 	m_Variables[Veh_SteerTilt_Sea]->SetRange(0.0f, 90.0f);
-	m_Variables[Veh_SteerSensitivity_Sea]->Initialize("Veh_SteerSensitivity_Sea", "Vehicle", 0.75f);
+	m_Variables[Veh_SteerSensitivity_Sea]->Initialize("SteerSensitivity_Sea", "Vehicle", 0.75f);
 	m_Variables[Veh_SteerSensitivity_Sea]->SetRange(0.001f);
 
+	m_Variables[Veh_InverseLook]->Initialize("InverseLook", "Vehicle", false);
+
 	// Vehicle button mapping
-	m_Variables[Veh_UseButton]->Initialize("Veh_UseButton", "Vehicle", WIIBTN_DPAD_DOWN);
-	m_Variables[Veh_HornButton]->Initialize("Veh_HornButton", "Vehicle", WIIBTN_DPAD_RIGHT);
-	m_Variables[Veh_LightsButton]->Initialize("Veh_LightsButton", "Vehicle", WIIBTN_1);
-	m_Variables[Veh_PrevSeatButton]->Initialize("Veh_PrevSeatButton", "Vehicle", WIIBTN_MINUS);
-	m_Variables[Veh_NextSeatButton]->Initialize("Veh_NextSeatButton", "Vehicle", WIIBTN_PLUS);
-	m_Variables[Veh_BoostButton]->Initialize("Veh_BoostButton", "Vehicle", WIIBTN_C);
-	m_Variables[Veh_FireButton]->Initialize("Veh_FireButton", "Vehicle", WIIBTN_B);
-	m_Variables[Veh_ReloadButton]->Initialize("Veh_ReloadButton", "Vehicle", WIIBTN_HOME);
-	m_Variables[Veh_ViewButton]->Initialize("Veh_ViewButton", "Vehicle", WIIBTN_2);
+	m_Variables[Veh_UseButton]->Initialize("Button_Use", "Vehicle", WIIBTN_DPAD_DOWN);
+	m_Variables[Veh_HornButton]->Initialize("Button_Horn", "Vehicle", WIIBTN_DPAD_RIGHT);
+	m_Variables[Veh_LightsButton]->Initialize("Button_Lights", "Vehicle", WIIBTN_2);
+	m_Variables[Veh_PrevSeatButton]->Initialize("Button_PrevSeat", "Vehicle", WIIBTN_MINUS);
+	m_Variables[Veh_NextSeatButton]->Initialize("Button_NextSeat", "Vehicle", WIIBTN_PLUS);
+	m_Variables[Veh_BoostButton]->Initialize("Button_Boost", "Vehicle", WIIBTN_C);
+	m_Variables[Veh_FireButton]->Initialize("Button_Fire", "Vehicle", WIIBTN_B);
+	m_Variables[Veh_ReloadButton]->Initialize("Button_Reload", "Vehicle", WIIBTN_HOME);
+	m_Variables[Veh_ViewButton]->Initialize("Button_View", "Vehicle", WIIBTN_1);
+
+	// Helicopter sensitivity
+	m_Variables[Heli_PitchSensitivity]->Initialize("PitchSensitivity", "Helicopter", 10.0f);
+	m_Variables[Heli_PitchSensitivity]->SetRange(0.001f, 100.0f);
+	m_Variables[Heli_PitchTilt]->Initialize("PitchTilt", "Helicopter", 10.0f);
+	m_Variables[Heli_PitchTilt]->SetRange(0.0f, 90.0f);
+	m_Variables[Heli_TurnSensitivity]->Initialize("TurnSensitivity", "Helicopter", 2.5f);
+	m_Variables[Heli_TurnSensitivity]->SetRange(1.0f);
+	m_Variables[Heli_TurnTilt]->Initialize("TurnTilt", "Helicopter", 10.0f);
+	m_Variables[Heli_TurnTilt]->SetRange(0.0f, 90.0f); 
+	m_Variables[Heli_IRSensor_PitchSensitivity]->Initialize("IRSensor_PitchSensitivity", "Helicopter", 30.0f);
+	m_Variables[Heli_IRSensor_PitchSensitivity]->SetRange(1.0f);
+	m_Variables[Heli_IRSensor_TurnSensitivity]->Initialize("IRSensor_TurnSensitivity", "Helicopter", 30.0f);
+	m_Variables[Heli_IRSensor_TurnSensitivity]->SetRange(1.0f);
+	m_Variables[Heli_RollSensitivity]->Initialize("RollSensitivity", "Helicopter", 2.0f);
+	m_Variables[Heli_RollSensitivity]->SetRange(0.001f, 100.0f);
+	m_Variables[Heli_RollTilt]->Initialize("RollTilt", "Helicopter", 10.0f);
+	m_Variables[Heli_RollTilt]->SetRange(0.0f, 90.0f);
+	m_Variables[Heli_SeatPrevSensitivity]->Initialize("SeatPrevSensitivity", "Helicopter", 1.5f);
+	m_Variables[Heli_SeatPrevSensitivity]->SetRange(1.0f);
+	m_Variables[Heli_SeatNextSensitivity]->Initialize("SeatNextSensitivity", "Helicopter", 1.5f);
+	m_Variables[Heli_SeatNextSensitivity]->SetRange(1.0f);
+	
+	m_Variables[Heli_InverseLook]->Initialize("InverseLook", "Helicopter", false);
+	m_Variables[Heli_UseStickRoll]->Initialize("UseStickRoll", "Helicopter", false);
+	
+	// Helicopter button mapping
+	m_Variables[Heli_UseButton]->Initialize("Button_Use", "Helicopter", WIIBTN_DPAD_DOWN);
+	m_Variables[Heli_BoostButton]->Initialize("Button_Boost", "Helicopter", WIIBTN_C);
+	m_Variables[Heli_PrevSeatButton]->Initialize("Button_PrevSeat", "Helicopter", WIIBTN_MINUS);
+	m_Variables[Heli_NextSeatButton]->Initialize("Button_NextSeat", "Helicopter", WIIBTN_PLUS);
+	m_Variables[Heli_FireGunButton]->Initialize("Button_FireGun", "Helicopter", WIIBTN_B);
+	m_Variables[Heli_FireRocketButton]->Initialize("Button_FireRocket", "Helicopter", WIIBTN_HOME);
+	m_Variables[Heli_ViewButton]->Initialize("Button_View", "Helicopter", WIIBTN_1);
+
+	// VTOL sensitivity
+	m_Variables[VTOL_PitchSensitivity]->Initialize("PitchSensitivity", "VTOL", 10.0f);
+	m_Variables[VTOL_PitchSensitivity]->SetRange(0.001f, 100.0f);
+	m_Variables[VTOL_PitchTilt]->Initialize("PitchTilt", "VTOL", 10.0f);
+	m_Variables[VTOL_PitchTilt]->SetRange(0.0f, 90.0f);
+	m_Variables[VTOL_TurnSensitivity]->Initialize("TurnSensitivity", "VTOL", 2.5f);
+	m_Variables[VTOL_TurnSensitivity]->SetRange(1.0f);
+	m_Variables[VTOL_TurnTilt]->Initialize("TurnTilt", "VTOL", 10.0f);
+	m_Variables[VTOL_TurnTilt]->SetRange(0.0f, 90.0f); 
+	m_Variables[VTOL_IRSensor_PitchSensitivity]->Initialize("IRSensor_PitchSensitivity", "VTOL", 30.0f);
+	m_Variables[VTOL_IRSensor_PitchSensitivity]->SetRange(1.0f);
+	m_Variables[VTOL_IRSensor_TurnSensitivity]->Initialize("IRSensor_TurnSensitivity", "VTOL", 30.0f);
+	m_Variables[VTOL_IRSensor_TurnSensitivity]->SetRange(1.0f);
+	m_Variables[VTOL_VSensitivity]->Initialize("VSensitivity", "VTOL", 2.0f);
+	m_Variables[VTOL_VSensitivity]->SetRange(0.001f, 100.0f);
+	m_Variables[VTOL_VTilt]->Initialize("VTilt", "VTOL", 10.0f);
+	m_Variables[VTOL_VTilt]->SetRange(0.0f, 90.0f);
+	m_Variables[VTOL_HSensitivity]->Initialize("HSensitivity", "VTOL", 2.0f);
+	m_Variables[VTOL_HSensitivity]->SetRange(0.001f, 100.0f);
+	m_Variables[VTOL_HTilt]->Initialize("HTilt", "VTOL", 10.0f);
+	m_Variables[VTOL_HTilt]->SetRange(0.0f, 90.0f); 
+	m_Variables[VTOL_SeatPrevSensitivity]->Initialize("SeatPrevSensitivity", "VTOL", 1.5f);
+	m_Variables[VTOL_SeatPrevSensitivity]->SetRange(1.0f);
+	m_Variables[VTOL_SeatNextSensitivity]->Initialize("SeatNextSensitivity", "VTOL", 1.5f);
+	m_Variables[VTOL_SeatNextSensitivity]->SetRange(1.0f);
+	
+	m_Variables[VTOL_InverseLook]->Initialize("InverseLook", "VTOL", false);
+	m_Variables[VTOL_UseStickStrafe]->Initialize("UseStickStrafe", "VTOL", true);
+	
+	// VTOL button mapping
+	m_Variables[VTOL_UseButton]->Initialize("Button_Use", "VTOL", WIIBTN_DPAD_DOWN);
+	m_Variables[VTOL_BoostButton]->Initialize("Button_Boost", "VTOL", WIIBTN_C);
+	m_Variables[VTOL_PrevSeatButton]->Initialize("Button_PrevSeat", "VTOL", WIIBTN_MINUS);
+	m_Variables[VTOL_NextSeatButton]->Initialize("Button_NextSeat", "VTOL", WIIBTN_PLUS);
+	m_Variables[VTOL_FireGunButton]->Initialize("Button_FireGun", "VTOL", WIIBTN_B);
+	m_Variables[VTOL_FireRocketButton]->Initialize("Button_FireRocket", "VTOL", WIIBTN_HOME);
+	m_Variables[VTOL_ViewButton]->Initialize("Button_View", "VTOL", WIIBTN_1);
 }
 
 ////////////////////////////////////////////////////

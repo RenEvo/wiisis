@@ -25,7 +25,13 @@
 // Variable IDs
 enum EPROFILEVARIABLES
 {
-	MaxLockViewDist = 0,	// Maximum distance entity can be to be locked on
+	RetainViewMode = 0,		// TRUE if view should retain focus
+	HardLockView,			// TRUE if view should be hard locked when retained (cannot be moved around)
+	UseIRSensor,			// TRUE to use IR sensor for viewing
+	ShowIRDot,				// TRUE to show the IR Dot on the HUD
+	IRDotOpacity,			// Value between 0 and 1 for opacity of IR Dot on the HUD
+	MaxLockViewDist,		// Maximum distance entity can be to be locked on
+
 	JumpSensitivity,		// How many Gs must be applied for jump to occur
 	CrouchTilt,				// Degree remote must be tilted down to toggle crouch
 	ProneTilt,				// Degree remote must be tilted down to toggle prone
@@ -51,11 +57,8 @@ enum EPROFILEVARIABLES
 	// Used in soft lock retain view mode
 	SoftLock_LookUpSensitivity,
 	SoftLock_TurnSensitivity,
-
+	
 	InverseLook,			// TRUE if tilting up the remote causes you to look down
-	RetainViewMode,			// TRUE if view should retain focus
-	HardLockView,			// TRUE if view should be hard locked when retained (cannot be moved around)
-	UseIRSensor,			// TRUE to use IR sensor for viewing
 
 	// Buttons
 	SprintButton,			// Button to use to sprint
@@ -92,6 +95,8 @@ enum EPROFILEVARIABLES
 	Veh_UseStickSteer_Sea,	// TRUE if the analog stick should be used to steer on sea
 	Veh_SteerTilt_Sea,
 	Veh_SteerSensitivity_Sea,
+
+	Veh_InverseLook,		// TRUE if tilting up the remote causes you to look down
 	
 	Veh_UseButton,			// Button to toggle "use"
 	Veh_HornButton,			// Button to toggle horn
@@ -102,6 +107,54 @@ enum EPROFILEVARIABLES
 	Veh_FireButton,			// Button to fire vehicle's weapon
 	Veh_ReloadButton,		// Button to reload vehicle's weapon
 	Veh_ViewButton,			// Button to toggle between first and third person view
+
+	// Helicopter controls
+	Heli_PitchSensitivity,
+	Heli_PitchTilt,
+	Heli_TurnSensitivity,
+	Heli_TurnTilt,
+	Heli_IRSensor_PitchSensitivity,
+	Heli_IRSensor_TurnSensitivity,
+	Heli_RollSensitivity,
+	Heli_RollTilt,
+	Heli_SeatPrevSensitivity,
+	Heli_SeatNextSensitivity,
+
+	Heli_InverseLook,
+	Heli_UseStickRoll,
+	
+	Heli_UseButton,
+	Heli_BoostButton,
+	Heli_PrevSeatButton,
+	Heli_NextSeatButton,
+	Heli_FireGunButton,
+	Heli_FireRocketButton,
+	Heli_ViewButton,
+
+	// VTOL controls
+	VTOL_PitchSensitivity,	
+	VTOL_PitchTilt,
+	VTOL_TurnSensitivity,
+	VTOL_TurnTilt,
+	VTOL_IRSensor_PitchSensitivity,
+	VTOL_IRSensor_TurnSensitivity,
+	VTOL_VSensitivity,
+	VTOL_VTilt,
+	VTOL_HSensitivity,
+	VTOL_HTilt,
+	VTOL_SeatPrevSensitivity,
+	VTOL_SeatNextSensitivity,
+
+	VTOL_InverseLook,
+	VTOL_UseStickStrafe,
+
+	VTOL_UseButton,
+	VTOL_BoostButton,
+	VTOL_PrevSeatButton,
+	VTOL_NextSeatButton,
+	VTOL_FireGunButton,
+	VTOL_FireRocketButton,
+	VTOL_ViewButton,
 
 	// MAX COUNT
 	EPROFILEVARIABLES_COUNT,
