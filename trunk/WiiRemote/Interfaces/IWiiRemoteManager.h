@@ -139,6 +139,24 @@ struct IWiiRemoteManager
 	// Purpose: Return the Wii Remote in use
 	////////////////////////////////////////////////////
 	virtual struct IWR_WiiRemote* GetRemote(void) const = 0;
+
+	////////////////////////////////////////////////////
+	// Rumble
+	//
+	// Purpose: Have the remote rumble for a set time
+	//
+	// In:	fDuration - How long to rumble
+	////////////////////////////////////////////////////
+	virtual void Rumble(float fDuration) = 0;
+
+	////////////////////////////////////////////////////
+	// OnWeaponShoot
+	//
+	// Purpose: Call when a weapon fires for rumble control
+	//
+	// In:	nShooterId - Id of shooter
+	////////////////////////////////////////////////////
+	virtual void OnWeaponShoot(unsigned int nShooterId) = 0;
 };
 
 #endif //_IWIIREMOTEMANAGER_H_

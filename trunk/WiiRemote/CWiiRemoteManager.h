@@ -21,6 +21,10 @@
 #define WRERROR_SHOWMESSAGE_LENGTH (5.0f)
 #define WRERROR_BATTERY_MARKER (0.1f) // Show battery low warning at 10%
 
+// Rumble timers
+#define RUMBLE_DAMAGE_TIMER (0.25f)
+#define RUMBLE_FIRE_WEAPON_TIMER (0.1f)
+
 // Battery icon dimensions
 #define BatteryWidth 32.f
 #define BatteryHeight 64.f
@@ -88,6 +92,10 @@ protected:
 	// IR Dot texture info
 	int m_nIRDotTexture;
 	float m_fIRDotWidth, m_fIRDotHeight;
+
+	// Rumble kill timer
+	float m_fRumbleKillTime;
+	int32 m_nLastPlayerHealth;
 
 	// Movement status
 	bool m_bSprint;
@@ -241,6 +249,24 @@ public:
 	// Purpose: Return the Wii Remote in use
 	////////////////////////////////////////////////////
 	virtual struct IWR_WiiRemote* GetRemote(void) const;
+
+	////////////////////////////////////////////////////
+	// Rumble
+	//
+	// Purpose: Have the remote rumble for a set time
+	//
+	// In:	fDuration - How long to rumble
+	////////////////////////////////////////////////////
+	virtual void Rumble(float fDuration);
+
+	////////////////////////////////////////////////////
+	// OnWeaponShoot
+	//
+	// Purpose: Call when a weapon fires for rumble control
+	//
+	// In:	nShooterId - Id of shooter
+	////////////////////////////////////////////////////
+	virtual void OnWeaponShoot(unsigned int nShooterId);
 
 protected:
 	////////////////////////////////////////////////////

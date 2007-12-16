@@ -31,6 +31,7 @@ enum EPROFILEVARIABLES
 	ShowIRDot,				// TRUE to show the IR Dot on the HUD
 	IRDotOpacity,			// Value between 0 and 1 for opacity of IR Dot on the HUD
 	MaxLockViewDist,		// Maximum distance entity can be to be locked on
+	EnableRumble,			// TRUE if rumble is allowed
 
 	JumpSensitivity,		// How many Gs must be applied for jump to occur
 	CrouchTilt,				// Degree remote must be tilted down to toggle crouch

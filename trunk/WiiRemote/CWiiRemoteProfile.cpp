@@ -106,6 +106,7 @@ void CWiiRemoteProfile::SetToDefault(void)
 	m_Variables[IRDotOpacity]->SetRange(0.0f, 1.0f);
 	m_Variables[MaxLockViewDist]->Initialize("MaxLockViewDist", "Options", 250.0f);
 	m_Variables[MaxLockViewDist]->SetRange(1.0f);
+	m_Variables[EnableRumble]->Initialize("EnableRumble", "Options", true);
 
 	// Player controls
 	m_Variables[JumpSensitivity]->Initialize("JumpSensitivity", "Player", 2.0f);

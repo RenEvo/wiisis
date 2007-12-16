@@ -29,6 +29,7 @@
 #include "IUIDraw.h"
 #include "Fists.h"
 #include "Binocular.h"
+
 ////////////////////////////////////////////////////
 // GetPlayer
 //
@@ -182,6 +183,8 @@ CWiiRemoteManager::CWiiRemoteManager(CGame *pGame)
 	m_nBatteryTexture = m_nBatteryLevelTexture = m_nIRDotTexture = 0;
 	m_fBatteryLevel = 1.0f;
 	m_fIRDotWidth = m_fIRDotHeight = 0.0f;
+	m_fRumbleKillTime = 0.0f;
+	m_nLastPlayerHealth = 0.0f;
 
 	g_WiiRemoteErrorListener.pManager = this;
 	g_WiiRemoteListener.pManager = this;
@@ -341,6 +344,8 @@ void CWiiRemoteManager::Update(bool bHaveFocus, int nUpdateFlags)
 				if (NULL != m_pGame->GetHUD())
 					m_pGame->GetHUD()->DisplayBigOverlayFlashMessage(m_Errors[i].szMessage.c_str(), WRERROR_SHOWMESSAGE_LENGTH);
 			}
+			m_pRemote->SetLEDs(WR_LED_NONE);
+			m_pRemote->SetRumble(false);
 			return;
 		}
 	}
@@ -453,11 +458,33 @@ void CWiiRemoteManager::Update(bool bHaveFocus, int nUpdateFlags)
 			else
 				m_pRemote->SetLEDs(WR_LED_ALL);
 		}
+
+		// Check player's health to see if we should rumble
+		int32 nHealth = pPlayer->GetHealth();
+		if (nHealth < m_nLastPlayerHealth)
+			Rumble(RUMBLE_DAMAGE_TIMER);
+		m_nLastPlayerHealth = nHealth;
+
+		// Check rumble kill time
+		if (true == m_pRemote->IsRumbleOn() && (CHECK_PROFILE_BOOL(EnableRumble) == false || m_fRumbleKillTime <= m_pWR->pTimer->GetCurrTime()))
+		{
+			m_fRumbleKillTime = 0.0f;
+			m_pRemote->SetRumble(false);
+		}
 	}
 	else
 	{
 		m_pRemote->SetLEDs(WR_LED_NONE);
+		m_pRemote->SetRumble(false);
 	}
+}
+
+////////////////////////////////////////////////////
+void CWiiRemoteManager::OnWeaponShoot(unsigned int nShooterId)
+{
+	CPlayer *pPlayer = GetPlayer();
+	if (NULL == pPlayer || pPlayer->GetEntityId() != nShooterId) return;
+	Rumble(RUMBLE_FIRE_WEAPON_TIMER);
 }
 
 ////////////////////////////////////////////////////
@@ -560,6 +587,7 @@ void CWiiRemoteManager::SetMasterEnabled(bool bOn)
 
 				// Turn remote's lights OFF
 				m_pRemote->SetLEDs(WR_LED_NONE);
+				m_pRemote->SetRumble(false);
 
 				// Set action listener to the player's input controller
 				pGameObject->ReleaseActions(this);
@@ -569,6 +597,7 @@ void CWiiRemoteManager::SetMasterEnabled(bool bOn)
 			{
 				// Turn remote's lights ON
 				m_pRemote->SetLEDs(WR_LED_ALL);
+				m_pRemote->SetRumble(false);
 
 				// Set action listening to us
 				if (pPlayer->GetPlayerInput()) pGameObject->ReleaseActions(pPlayer->GetPlayerInput()->GetActionListener());
@@ -647,6 +676,14 @@ IWR_WiiRemote* CWiiRemoteManager::GetRemote(void) const
 }
 
 ////////////////////////////////////////////////////
+void CWiiRemoteManager::Rumble(float fDuration)
+{
+	if (NULL == m_pRemote || NULL == m_pWR || false == CHECK_PROFILE_BOOL(EnableRumble)) return;
+	m_fRumbleKillTime = m_pWR->pTimer->GetCurrTime() + fDuration;
+	m_pRemote->SetRumble(true);
+}
+
+////////////////////////////////////////////////////
 void SWiiRemoteListener::OnConnect(IWR_WiiRemote *pRemote)
 {
 	CryLogAlways("[WiiRemoteManager] Wii Remote Connection Established!");
@@ -704,7 +741,7 @@ void SWiiRemoteListener::OnReportChanged(IWR_WiiRemote *pRemote, int nReport, bo
 void SWiiRemoteListener::OnStatusUpdate(IWR_WiiRemote *pRemote, int nStatus, int nBattery)
 {
 	// Update manager's battery level
-	pManager->m_fBatteryLevel = (float)nBattery * (1.0f/200.0f);
+	pManager->m_fBatteryLevel = CLAMP(((float)nBattery * (1.0f/100.0f)), 0.0f, 1.0f);
 	if (pManager->m_fBatteryLevel <= WRERROR_BATTERY_MARKER)
 		pManager->SetErrorLevel(WIIREMOTE_ERROR_LOWBATTERY);
 	else
