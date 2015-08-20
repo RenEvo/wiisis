@@ -1,0 +1,21 @@
+# Subversion #
+The latest version of the source code can be obtained through anonymous checkout. You may view the contents of the repository or get the instructions on how to check out the code on the [Source](http://code.google.com/p/wiisis/source) page.
+
+You can also find downloads including the [Wii Remote Window tool](WiiRemoteWindow.md) and the binaries for the latest API files in the [Downloads](http://code.google.com/p/wiisis/downloads/list) section.
+
+Don't forget to review the API documentation [here](TOC.md)!
+
+
+# Requirements #
+In order to compile the Wiisis API, you will need to include the files into your Game DLL solution obtained from the CryENGINE 2 SDK. For information on what each file is, see the [Files section](Files.md).
+
+You will also need the latest version of the [Windows Driver Development Kit](http://www.microsoft.com/whdc/devtools/ddk/default.mspx) or WDK. Please be sure to add the correct paths for the include and library directories in your Visual Studio configuration. By default, these paths are as followed:
+
+> | Includes (both x86 and x64) | C:\WinDDK\6000\inc\api       |
+|:----------------------------|:-----------------------------|
+> | Libraries (x86)             | C:\WinDDK\6000\lib\wlh\i386  |
+> | Libraries (x64)             | C:\WinDDK\6000\lib\wlh\amd64 |
+
+
+# Suggestions #
+If you wish to reuse some of the source code for the Wiisis modification, I suggest that you backup the original files. At a later date, I may come back and attempt to remove some of the dependencies.

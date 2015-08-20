@@ -1,0 +1,11 @@
+# Files #
+
+  * Interfaces\IWiiRemoteManager.h
+  * CWiiRemoteManager.h
+  * CWiiRemoteManager.cpp
+
+# Description #
+
+The Remote Manager in Wiisis communicates with the WR Library, setting up the one Nintendo Wii Remote connection and listening to its many helper's callbacks for input control. It uses the info from the Remote Profile to determine when the user has requested an action and executes the logic behind that action.
+
+It also creates and holds on to the registered Motion helpers and updates them.

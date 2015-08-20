@@ -1,0 +1,46 @@
+# Introduction #
+
+The Wii Remote Window application is an external tool that lets you play with your Nintendo Wii Remote in a sandbox environment. It can support up to 4 simultaneous Wii Remote connections.
+
+# Features #
+
+This tool has the following features:
+
+  * Connection Status - Reports the status of the Wii Remote connection, up to 4!
+  * Battery Status - Reports the status of the batteries in the Wii Remote.
+  * Input Status - Reports the status of the buttons on the Wii Remote and the extension.
+  * Motion Status - Reports the motion data including its position and orientation for the Wii Remote and its extension.
+  * Gesture Status - Reports the starting and ending data of a gesture, including its lifetime.
+  * Motion Charts - Real-time flowing chart that shows the progression of the G forces on all three axis. Helpful for when mapping out how to implement a gesture!
+  * Data Status - Reports recent data communication with the Wii Remote and allows for reading/writing to/from the Wii Remote.
+  * IR Sensor Status - Displays a cursor to show where the Nintendo Wii Remote is pointing.
+
+# Instructions #
+  1. Launch the application. Allow it to detect how many HID profiles are on the computer. Click OK to continue when all have been found.
+  1. Connect to a Wii Remote by going to File -> Connect -> Controller Number.
+  1. Play with the Wii Remote to your heart's content!
+
+# View Menus #
+## Controller ##
+Hotkey: Ctrl + C
+
+Description: Shows the status of the Wii Remote, its input and motion information.
+
+## Data ##
+Hotkey: Ctrl + D
+
+Description: Shows the data transfer status on the Wii Remote.
+
+## Extension ##
+Hotkey: Ctrl + E
+
+Description: Shows the status of the extension plugged into the Wii Remote, its input and motion information.
+
+## IR Sensor ##
+Hotkey: Ctrl + S
+
+Description: Shows the cursor location of the Wii Remote on the screen.
+
+# Tips #
+  * You can turn the Motion Charts on or off through the menu by selecting File -> Update Motion Chart.
+  * You can navigate through the many different views by selecting an option from the View menu.
